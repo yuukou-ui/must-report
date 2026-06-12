@@ -144,12 +144,17 @@
     .toggle-bar, #inputView, .actions, .page-warn{ display:none !important; }
     #previewView{ display:block !important; padding:0; }
     .wrap{ padding:0; margin:0; max-width:none; }
-    .sheet-scale{ overflow:hidden; height:auto !important; margin:0; }
-    /* 高さを用紙1枚分より僅かに小さく固定し、はみ出しは切る＝2枚目の白紙を出さない */
-    .sheet{ box-shadow:none; border-radius:0; width:210mm; height:296mm; overflow:hidden;
-      padding:10mm 12mm; transform:none !important; }
-    .pv-photos{ break-inside:avoid; }
-    .pv-photo, .report-sec, .rline{ break-inside:avoid; }
+    .sheet-scale{ overflow:visible; height:auto !important; margin:0; }
+    /* iPhone等の印刷はプリンタ余白を勝手に確保する。余白込みでも必ず1枚に収まるよう
+       高さ固定をやめ、全体をひと回り小さく(mm指定で)組み直す */
+    .sheet{ box-shadow:none; border-radius:0; width:auto; height:auto; overflow:visible;
+      padding:5mm 12mm 0; transform:none !important; }
+    .head-row{ margin-top:4mm; }
+    .report-sec{ margin-top:3mm; break-inside:avoid; }
+    .report-lines{ height:45mm; }
+    .pv-photos{ grid-template-columns:repeat(2,46mm); gap:2mm 12mm; margin-top:3mm; }
+    .pv-photo{ break-inside:avoid; }
+    .sheet-foot{ margin-top:3mm; padding-top:2mm; }
   }
 </style>
 </head>
