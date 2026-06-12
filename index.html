@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="format-detection" content="telephone=no">
+<title>清掃報告書｜マスト管理 有限会社</title>
+<style>
+  :root{
+    --navy:#14315e; --navy2:#1f4a8a; --orange:#ff7a18; --orange2:#e85d00;
+    --bg:#f4f7fb; --bg2:#eef2f8; --line:#d8dee9; --ink:#1a2233; --muted:#5b6577;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{ margin:0; font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+    color:var(--ink); background:var(--bg2); line-height:1.6; }
+
+  /* ===== 切替トグル ===== */
+  .toggle-bar{ position:sticky; top:0; z-index:50; display:flex; gap:6px; padding:8px;
+    background:var(--navy); box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .toggle-bar button{ flex:1; padding:12px 8px; font-size:15px; font-weight:700; border:none;
+    border-radius:10px; background:rgba(255,255,255,.15); color:#fff; cursor:pointer; transition:.15s; }
+  .toggle-bar button.active{ background:var(--orange); }
+
+  .wrap{ max-width:720px; margin:0 auto; padding:14px; }
+
+  /* ===== 入力フォーム ===== */
+  #inputView .card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .card h2{ margin:0 0 12px; font-size:15px; color:var(--navy); display:flex; align-items:center; gap:7px; }
+  .card h2 .num{ width:24px; height:24px; border-radius:7px; background:var(--orange); color:#fff; font-size:13px;
+    display:inline-flex; align-items:center; justify-content:center; }
+  label.fld{ display:block; margin-bottom:14px; }
+  label.fld:last-child{ margin-bottom:0; }
+  label.fld > span{ display:block; font-size:13px; font-weight:700; color:var(--muted); margin-bottom:5px; }
+  input[type=text], input[type=date], textarea{ width:100%; padding:13px 12px; font-size:16px;
+    border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font-family:inherit; }
+  input:focus, textarea:focus{ outline:none; border-color:var(--orange); }
+  textarea{ min-height:90px; resize:vertical; }
+
+  .checks{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .chk{ display:flex; align-items:center; gap:8px; padding:10px; border:1.5px solid var(--line);
+    border-radius:10px; font-size:14px; background:#fafbfd; }
+  .chk.on{ border-color:var(--orange); background:#fff6ee; color:var(--orange2); font-weight:700; }
+  .chk input[type=checkbox]{ width:18px; height:18px; accent-color:var(--orange); flex:none; }
+  .chk .chk-name{ flex:1; cursor:pointer; }
+  .chk .chk-del{ border:none; background:none; color:var(--muted); font-size:18px; line-height:1; cursor:pointer; padding:0 2px; flex:none; }
+  .chk .chk-del:hover{ color:var(--orange2); }
+  .add-work{ display:flex; gap:8px; margin-top:10px; }
+  .add-work input{ flex:1; }
+  .add-work button{ flex:none; padding:0 16px; border:none; border-radius:10px; background:var(--navy);
+    color:#fff; font-weight:700; font-size:14px; cursor:pointer; }
+
+  .photo-pick{ display:flex; align-items:center; justify-content:center; gap:8px; padding:16px;
+    border:1.5px dashed var(--navy2); border-radius:12px; background:#fafbfd; color:var(--navy);
+    font-weight:700; font-size:15px; cursor:pointer; position:relative; }
+  .photo-pick input[type=file]{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .photo-pick .big{ font-size:22px; }
+  .photo-count{ font-size:13px; color:var(--muted); margin:10px 2px 0; }
+  .photo-count b{ color:var(--orange2); }
+  .thumbs{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px; }
+  .thumb{ position:relative; aspect-ratio:4/3; border-radius:8px; overflow:hidden; border:1px solid var(--line); }
+  .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb .del{ position:absolute; top:4px; right:4px; width:24px; height:24px; border:none; border-radius:50%;
+    background:rgba(20,49,94,.85); color:#fff; font-size:14px; cursor:pointer; }
+  .hint-note{ font-size:12px; color:var(--muted); margin:8px 2px 0; }
+
+  /* 清掃者ワンタップ */
+  .name-chips{ display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 2px; }
+  .nchip{ display:inline-flex; align-items:center; gap:5px; padding:8px 13px; border:1.5px solid var(--navy2);
+    border-radius:18px; background:#fff; color:var(--navy); font-size:14px; font-weight:700; cursor:pointer; }
+  .nchip.on{ background:#fff6ee; border-color:var(--orange); color:var(--orange2); }
+  .nchip .x{ border:none; background:none; color:var(--muted); font-size:15px; line-height:1; cursor:pointer; padding:0; }
+  .name-save{ margin-top:8px; border:1.5px dashed var(--line); background:var(--bg); color:var(--navy);
+    border-radius:10px; padding:9px 14px; font-size:13px; font-weight:700; cursor:pointer; }
+
+  /* ===== プレビュー：実物レイアウト＋細線スパイス（A4 1枚） ===== */
+  #previewView{ display:none; }
+  /* A4を実寸(794px)で組み、スマホでは縮小して画面幅にフィットさせる */
+  .sheet-scale{ overflow:hidden; margin:0 auto; }
+  .sheet{ background:#fff; width:794px; padding:49px 45px; transform-origin:top left;
+    box-shadow:0 4px 20px rgba(20,49,94,.12); border-radius:6px; }
+
+  /* タイトル中央＋細い青→オレンジ線（スパイス） */
+  .doc-title{ text-align:center; font-size:21px; font-weight:800; letter-spacing:.5em; color:var(--navy);
+    text-indent:.5em; }
+  .doc-title-line{ width:340px; max-width:80%; height:2.5px; margin:7px auto 0;
+    background:linear-gradient(90deg,var(--navy) 0%,var(--navy2) 50%,var(--orange) 100%); border-radius:2px; }
+
+  /* 見出し下の本体：左に項目、右に会社情報 */
+  .head-row{ display:flex; justify-content:space-between; gap:20px; margin-top:18px;
+    align-items:flex-start; }
+  .fields{ flex:none; }
+  .frow{ display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+  .flabel{ font-size:13px; font-weight:700; color:var(--navy); letter-spacing:.5em;
+    width:78px; flex:none; text-align:justify; text-justify:inter-character; }
+  .fvalue{ width:190px; flex:none; font-size:15px; font-weight:700; color:var(--ink); padding:0 4px 3px;
+    border-bottom:1.5px solid var(--navy); min-height:1.4em; text-align:center; }
+  .fvalue.empty{ color:var(--muted); font-weight:400; border-bottom-color:var(--line); }
+  .fvalue.worker{ letter-spacing:.5em; text-indent:.5em; }
+
+  .company{ text-align:right; font-size:10.5px; line-height:1.6; color:var(--ink); width:250px; flex:none; }
+  .company .cname{ font-size:13.5px; font-weight:800; color:var(--navy); letter-spacing:.02em; }
+
+  /* 目視報告 */
+  .report-sec{ margin-top:14px; }
+  .sec-title{ font-size:14px; font-weight:800; color:var(--navy); letter-spacing:.3em;
+    padding-left:9px; border-left:4px solid var(--orange); margin-bottom:8px; }
+  /* 固定高さ。行が増えたらJSがフォントを縮めて必ず枠内に収める＝2枚目に行かない */
+  .report-lines{ height:170px; overflow:hidden; font-size:13.5px; }
+  .rline{ font-size:1em; line-height:1.5; color:var(--ink); padding:.18em 2px .3em;
+    border-bottom:1px solid var(--line); display:flex; gap:7px; min-height:1.5em; }
+  .rline::before{ content:"✓"; color:var(--orange2); font-weight:800; flex:none; }
+  .rline.free::before{ content:"・"; color:var(--navy2); }
+  .rline.blank::before{ content:""; }
+  .rtext{ flex:1; min-width:0; overflow-wrap:anywhere; }
+
+  /* 写真 2列×4段（実物どおり・小さめ＆中央寄せ）※A4 1枚に収まるサイズ */
+  .pv-photos{ display:grid; grid-template-columns:repeat(2,190px); justify-content:center;
+    gap:8px 60px; margin-top:12px; }
+  .pv-photo{ position:relative; aspect-ratio:4/3; border:1px solid var(--line); border-radius:4px;
+    overflow:hidden; background:var(--bg); }
+  .pv-photo img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .pv-photo.spare::after{ content:"予備"; position:absolute; top:5px; left:5px; font-size:10px;
+    background:rgba(255,255,255,.85); color:var(--muted); padding:1px 6px; border-radius:3px; }
+  .pv-photos .empty-ph{ grid-column:1/3; color:var(--muted); font-size:12px; text-align:center; padding:12px; }
+
+  .sheet-foot{ margin-top:12px; padding-top:8px; border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center; font-size:10px; color:var(--muted); }
+  .sheet-foot .brandline{ color:var(--navy); font-weight:700; }
+  .sheet-foot .brandline .o{ color:var(--orange2); }
+
+  .actions{ max-width:720px; margin:16px auto 30px; display:flex; gap:10px; padding:0 14px; }
+  .actions button{ flex:1; padding:15px; font-size:15px; font-weight:800; border:none; border-radius:12px; cursor:pointer; color:#fff; }
+  .btn-pdf{ background:linear-gradient(135deg,var(--orange) 0%,var(--orange2) 100%); }
+  .btn-back{ background:var(--navy); }
+
+  /* 文字が縮みすぎた時だけ出る警告 */
+  .page-warn{ max-width:720px; margin:12px auto 0; padding:11px 14px; border-radius:10px;
+    font-size:13px; font-weight:700; text-align:center; line-height:1.5;
+    background:#fdeee2; color:#b3500a; border:1px solid #f7c9a3; }
+
+  @media print{
+    @page{ size:A4; margin:0; }
+    html,body{ background:#fff; }
+    .toggle-bar, #inputView, .actions{ display:none !important; }
+    #previewView{ display:block !important; padding:0; }
+    .wrap{ padding:0; max-width:none; }
+    .sheet-scale{ overflow:visible; height:auto !important; }
+    .sheet{ box-shadow:none; border-radius:0; width:210mm; padding:10mm 12mm;
+      transform:none !important; }
+    .pv-photos{ break-inside:avoid; }
+    .pv-photo, .report-sec, .rline{ break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toggle-bar">
+  <button id="tabInput" class="active" onclick="switchView('input')">✏️ 入力</button>
+  <button id="tabPreview" onclick="switchView('preview')">👁 プレビュー</button>
+</div>
+
+<!-- ============ 入力 ============ -->
+<div id="inputView" class="wrap">
+
+  <div class="card">
+    <h2><span class="num">1</span>基本情報</h2>
+    <label class="fld"><span>清掃場所</span>
+      <input type="text" id="f_place" placeholder="例：サンハイツ国分寺 A棟" oninput="render()"></label>
+    <label class="fld"><span>清掃日</span>
+      <input type="date" id="f_date" oninput="render()"></label>
+    <label class="fld"><span>清掃者</span>
+      <input type="text" id="f_worker" placeholder="例：大澤" oninput="render();syncNameChips()"></label>
+    <div class="name-chips" id="nameChips"></div>
+    <button class="name-save" onclick="saveName()">＋ いまの名前を登録（次回からワンタップ）</button>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">2</span>作業内容（定番をタップ・追加削除可）</h2>
+    <div class="checks" id="checkList"></div>
+    <div class="add-work">
+      <input type="text" id="newWork" placeholder="項目を追加（例：高圧洗浄）" onkeydown="if(event.key==='Enter')addWork()">
+      <button onclick="addWork()">＋追加</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">3</span>特記事項・気づいた点（自由記入）</h2>
+    <label class="fld"><span>気づいた点・特記など（1行ずつ書くと罫線で並びます）</span>
+      <textarea id="f_notes" placeholder="例：駐車場 蜘蛛の巣・ツバメの巣 除去済み&#10;3F廊下 蛍光灯1本切れ → 管理会社へ要連絡"></textarea></label>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">4</span>写真（最大8枚・まとめて選択）</h2>
+    <label class="photo-pick">
+      <span class="big">📷</span><span>写真を選ぶ（複数まとめてOK）</span>
+      <input type="file" id="photoInput" accept="image/*" multiple onchange="addPhotos(this)">
+    </label>
+    <p class="photo-count">登録中：<b id="photoNum">0</b> / 8 枚　<span id="spareNote"></span></p>
+    <div class="thumbs" id="thumbs"></div>
+    <p class="hint-note">8枚を超える分は自動で受け付けません。8枚目は報告書で「予備」と表示されます。</p>
+  </div>
+
+</div>
+
+<!-- ============ プレビュー ============ -->
+<div id="previewView" class="wrap">
+  <div class="sheet-scale" id="sheetScale">
+  <div class="sheet" id="sheet">
+    <div class="doc-title">清掃報告書</div>
+    <div class="doc-title-line"></div>
+
+    <div class="head-row">
+      <div class="fields">
+        <div class="frow"><div class="flabel">清掃場所</div><div class="fvalue empty" id="pv_place">未入力</div></div>
+        <div class="frow"><div class="flabel">清掃日</div><div class="fvalue empty" id="pv_date">未入力</div></div>
+        <div class="frow"><div class="flabel">清掃者</div><div class="fvalue worker empty" id="pv_worker">未入力</div></div>
+      </div>
+      <div class="company">
+        <span class="cname">マスト管理 有限会社</span><br>
+        〒769-0103 高松市国分寺町福家甲1893-1<br>
+        TEL：087-883-8208<br>
+        香川県全域 対応
+      </div>
+    </div>
+
+    <div class="report-sec">
+      <div class="sec-title">作業内容・特記事項</div>
+      <div class="report-lines" id="pv_report"></div>
+    </div>
+
+    <div class="pv-photos" id="pv_photos">
+      <div class="empty-ph">写真が未登録です</div>
+    </div>
+
+    <div class="sheet-foot">
+      <div class="brandline">マスト<span class="o">管理</span> 有限会社 ｜ 香川県全域 対応</div>
+      <div>本報告書は作業完了後に作成しています</div>
+    </div>
+  </div>
+  </div>
+  <div class="page-warn" id="pageWarn" style="display:none;"></div>
+</div>
+
+<div class="actions" id="actions" style="display:none;">
+  <button class="btn-back" onclick="switchView('input')">← 入力にもどる</button>
+  <button class="btn-pdf" onclick="window.print()">📄 PDF / 印刷</button>
+</div>
+
+<script>
+  const MAX_PHOTOS = 8;
+  let works = [
+    {name:"掃き掃除", checked:false},
+    {name:"拭き・モップがけ", checked:false},
+    {name:"ゴミ置き場 清掃", checked:false},
+    {name:"クモの巣・卵 除去", checked:false},
+    {name:"手すり・ガラス拭き", checked:false},
+    {name:"除草・除草剤散布", checked:false},
+    {name:"ゴミ収集・搬出", checked:false},
+    {name:"設備点検・異常確認", checked:false},
+  ];
+  let photos = [];
+
+  /* 作業内容（定番タップ） */
+  function renderChecks(){
+    const box = document.getElementById('checkList'); box.innerHTML='';
+    works.forEach((w,i)=>{
+      const div=document.createElement('div');
+      div.className='chk'+(w.checked?' on':'');
+      div.innerHTML=`<input type="checkbox" ${w.checked?'checked':''} onchange="toggleWork(${i},this.checked)">
+        <span class="chk-name" onclick="this.previousElementSibling.click()">${esc(w.name)}</span>
+        <button class="chk-del" title="削除" onclick="delWork(${i})">×</button>`;
+      box.appendChild(div);
+    });
+  }
+  function toggleWork(i,c){ works[i].checked=c; renderChecks(); render(); }
+  function delWork(i){ works.splice(i,1); renderChecks(); render(); }
+  function addWork(){
+    const inp=document.getElementById('newWork'); const name=inp.value.trim(); if(!name)return;
+    works.push({name,checked:true}); inp.value=''; renderChecks(); render();
+  }
+
+  /* 写真（取り込み時に自動圧縮：長辺1400px・JPEG。スマホ写真が数MBあっても軽くなる） */
+  function addPhotos(input){
+    const files=[...input.files]; const room=MAX_PHOTOS-photos.length;
+    if(room<=0){ alert('写真は最大8枚までです。'); input.value=''; return; }
+    const take=files.slice(0,room);
+    if(files.length>room) alert('8枚を超えるため、先頭の'+room+'枚のみ登録しました。');
+    const base=photos.length;
+    take.forEach(()=>photos.push(null));   // 選んだ順番を保つため先に枠を確保
+    let pending=take.length;
+    take.forEach((file,idx)=>{ shrinkPhoto(file, d=>{
+      photos[base+idx]=d;
+      if(--pending===0){ photos=photos.filter(p=>p); renderThumbs(); render(); }
+    }); });
+    input.value='';
+  }
+  function shrinkPhoto(file, cb){
+    const r=new FileReader();
+    r.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=1400;
+        const s=Math.min(1, MAX/Math.max(img.width,img.height));
+        const w=Math.round(img.width*s), h=Math.round(img.height*s);
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        cb(c.toDataURL('image/jpeg',0.82));
+      };
+      img.onerror=()=>cb(e.target.result);  // 描画できない形式は元データのまま使う
+      img.src=e.target.result;
+    };
+    r.onerror=()=>cb(null);
+    r.readAsDataURL(file);
+  }
+  function delPhoto(i){ photos.splice(i,1); renderThumbs(); render(); }
+  function renderThumbs(){
+    document.getElementById('photoNum').textContent=photos.length;
+    document.getElementById('spareNote').textContent = photos.length>=8 ? '（8枚目＝予備）' : '';
+    document.getElementById('thumbs').innerHTML=photos.map((d,i)=>
+      `<div class="thumb"><img src="${d}"><button class="del" onclick="delPhoto(${i})">×</button></div>`).join('');
+  }
+
+  /* 清掃者の名前プリセット（端末内localStorageに保存） */
+  function loadNames(){ try{ return JSON.parse(localStorage.getItem('cleanerNames')||'[]'); }catch(e){ return []; } }
+  function storeNames(a){ try{ localStorage.setItem('cleanerNames', JSON.stringify(a)); }catch(e){} }
+  function renderNameChips(){
+    const cur=val('f_worker').trim();
+    document.getElementById('nameChips').innerHTML = loadNames().map((n,i)=>
+      `<span class="nchip ${n===cur?'on':''}" onclick="pickName(${i})">${esc(n)}<button class="x" onclick="delName(${i});event.stopPropagation();">×</button></span>`
+    ).join('');
+  }
+  function pickName(i){ const n=loadNames()[i]; if(n==null)return; document.getElementById('f_worker').value=n; render(); renderNameChips(); }
+  function saveName(){ const v=val('f_worker').trim(); if(!v){ alert('先に清掃者名を入力してください。'); return; }
+    let a=loadNames(); if(!a.includes(v)){ a.unshift(v); a=a.slice(0,8); storeNames(a); } renderNameChips(); }
+  function delName(i){ let a=loadNames(); a.splice(i,1); storeNames(a); renderNameChips(); }
+  function syncNameChips(){ renderNameChips(); }
+
+  function switchView(v){
+    const input=v==='input';
+    document.getElementById('inputView').style.display=input?'block':'none';
+    document.getElementById('previewView').style.display=input?'none':'block';
+    document.getElementById('actions').style.display=input?'none':'flex';
+    document.getElementById('tabInput').classList.toggle('active',input);
+    document.getElementById('tabPreview').classList.toggle('active',!input);
+    if(!input){ render(); scaleSheet(); } window.scrollTo(0,0);
+  }
+
+  /* A4(794px)をスマホ画面幅に縮小フィット */
+  function scaleSheet(){
+    const sheet=document.getElementById('sheet');
+    const scaleWrap=document.getElementById('sheetScale');
+    if(!sheet||!scaleWrap||document.getElementById('previewView').style.display==='none') return;
+    // 縮小の基準は「枠自身の内側幅」。親のpadding込み幅を使うと用紙が画面からはみ出し右端(会社情報)が切れる
+    const avail=scaleWrap.clientWidth;
+    const s=Math.min(1, avail/794);
+    fitReport();
+    sheet.style.transform='scale('+s+')';
+    scaleWrap.style.height=(sheet.offsetHeight*s)+'px';
+  }
+
+  /* 作業内容欄が固定枠(170px)を超えたら、収まるまでフォントを段階縮小（行間もem連動で縮む） */
+  function fitReport(){
+    const box=document.getElementById('pv_report'); if(!box) return;
+    let fs=13.5; box.style.fontSize=fs+'px';
+    while(box.scrollHeight > box.clientHeight && fs > 8){ fs-=0.5; box.style.fontSize=fs+'px'; }
+    // フォントが縮小限界近く（≦9px）まで下がった時だけ＝本当に長すぎる時だけ警告
+    const warn=document.getElementById('pageWarn'); if(!warn) return;
+    if(fs <= 9){
+      warn.style.display='block';
+      warn.textContent='⚠️ 作業内容・特記事項が長く、文字がかなり小さくなっています。読みやすさのため、文章を短くするか写真を減らすのがおすすめです。';
+    } else { warn.style.display='none'; }
+  }
+  window.addEventListener('resize', scaleSheet);
+
+  function fmtDate(v){ if(!v)return '';
+    const d=new Date(v+'T00:00:00'); const wd=['日','月','火','水','木','金','土'][d.getDay()];
+    return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${wd}）`; }
+
+  function setField(id,v){
+    const e=document.getElementById(id);
+    if(v){ e.textContent=v; e.classList.remove('empty'); }
+    else { e.textContent='未入力'; e.classList.add('empty'); }
+  }
+
+  function render(){
+    setField('pv_place', val('f_place'));
+    setField('pv_date', fmtDate(val('f_date')));
+    setField('pv_worker', val('f_worker'));
+
+    // PDF保存時のファイル名＝ページタイトルになるため「清掃報告書_物件名_日付」に揃える（半月分まとめ送付の整理用）
+    const p=val('f_place').trim(), d=val('f_date');
+    document.title = (p||d) ? `清掃報告書_${p||'物件名未入力'}_${(d||'').replace(/-/g,'')}` : '清掃報告書｜マスト管理 有限会社';
+
+    // 作業内容・特記事項：チェック項目（済み）＋自由記入の各行。最低5行の罫線を用意
+    const lines=[];
+    works.filter(w=>w.checked).forEach(w=> lines.push({t:'chk', text:w.name+' 済み'}));
+    val('f_notes').split('\n').map(s=>s.trim()).filter(s=>s).forEach(s=> lines.push({t:'free', text:s}));
+    while(lines.length < 5) lines.push({t:'blank', text:''});
+    const box=document.getElementById('pv_report');
+    box.innerHTML = lines.map(l=>
+      `<div class="rline ${l.t==='free'?'free':(l.t==='blank'?'blank':'')}"><span class="rtext">${esc(l.text)}</span></div>`).join('');
+
+    // 写真（8枚目は予備ラベル）
+    const pbox=document.getElementById('pv_photos');
+    pbox.innerHTML = photos.length
+      ? photos.map((d,i)=>`<div class="pv-photo ${i===7?'spare':''}"><img src="${d}"></div>`).join('')
+      : `<div class="empty-ph">写真が未登録です</div>`;
+  }
+
+  function val(id){ const e=document.getElementById(id); return e?e.value:''; }
+  function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+  document.getElementById('f_date').valueAsDate=new Date();
+  renderChecks(); renderNameChips(); render();
+</script>
+</body>
+</html>
