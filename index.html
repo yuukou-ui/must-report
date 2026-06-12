@@ -128,10 +128,11 @@
   .sheet-foot .brandline{ color:var(--navy); font-weight:700; }
   .sheet-foot .brandline .o{ color:var(--orange2); }
 
-  .actions{ max-width:720px; margin:16px auto 30px; display:flex; gap:10px; padding:0 14px; }
+  .actions{ max-width:720px; margin:16px auto 30px; display:flex; flex-wrap:wrap; gap:10px; padding:0 14px; }
   .actions button{ flex:1; padding:15px; font-size:15px; font-weight:800; border:none; border-radius:12px; cursor:pointer; color:#fff; }
   .btn-pdf{ background:linear-gradient(135deg,var(--orange) 0%,var(--orange2) 100%); }
   .btn-back{ background:var(--navy); }
+  .print-hint{ flex-basis:100%; margin:2px 0 0; font-size:12px; color:var(--muted); text-align:center; line-height:1.5; }
 
   /* 文字が縮みすぎた時だけ出る警告 */
   .page-warn{ max-width:720px; margin:12px auto 0; padding:11px 14px; border-radius:10px;
@@ -146,15 +147,14 @@
     .wrap{ padding:0; margin:0; max-width:none; }
     .sheet-scale{ overflow:visible; height:auto !important; margin:0; }
     /* iPhone等の印刷はプリンタ余白を勝手に確保する。余白込みでも必ず1枚に収まるよう
-       高さ固定をやめ、全体をひと回り小さく(mm指定で)組み直す */
+       写真サイズは維持しつつコメント欄と各間隔を圧縮（コメント欄の高さは印刷時JSが110pxに切替） */
     .sheet{ box-shadow:none; border-radius:0; width:auto; height:auto; overflow:visible;
-      padding:5mm 12mm 0; transform:none !important; }
-    .head-row{ margin-top:4mm; }
-    .report-sec{ margin-top:3mm; break-inside:avoid; }
-    .report-lines{ height:45mm; }
-    .pv-photos{ grid-template-columns:repeat(2,46mm); gap:2mm 12mm; margin-top:3mm; }
+      padding:4mm 12mm 0; transform:none !important; }
+    .head-row{ margin-top:3mm; }
+    .report-sec{ margin-top:2mm; break-inside:avoid; }
+    .pv-photos{ grid-template-columns:repeat(2,46mm); gap:1.5mm 12mm; margin-top:2.5mm; }
     .pv-photo{ break-inside:avoid; }
-    .sheet-foot{ margin-top:3mm; padding-top:2mm; }
+    .sheet-foot{ margin-top:2.5mm; padding-top:1.5mm; }
   }
 </style>
 </head>
@@ -249,7 +249,8 @@
 
 <div class="actions" id="actions" style="display:none;">
   <button class="btn-back" onclick="switchView('input')">← 入力にもどる</button>
-  <button class="btn-pdf" onclick="window.print()">📄 PDF / 印刷</button>
+  <button class="btn-pdf" onclick="doPrint()">📄 PDF / 印刷</button>
+  <p class="print-hint">※「自動的に印刷することは禁止…」と表示されたら「<b>許可</b>」を押してください（2回目以降に出るiPhoneの確認です）</p>
 </div>
 
 <script>
@@ -364,18 +365,27 @@
     scaleWrap.style.height=(sheet.offsetHeight*s)+'px';
   }
 
-  /* 作業内容欄が固定枠(170px)を超えたら、収まるまでフォントを段階縮小（行間もem連動で縮む） */
-  function fitReport(){
+  /* 作業内容欄が固定枠を超えたら、収まるまでフォントを段階縮小（行間もem連動で縮む）
+     printMode=true のときは印刷用の低い枠(110px)に切り替えて再フィット＝A4・1枚に必ず収める */
+  const PRINT_LINES_H = 110;
+  function fitReport(printMode){
     const box=document.getElementById('pv_report'); if(!box) return;
+    box.style.height = printMode ? PRINT_LINES_H+'px' : '';
     let fs=13.5; box.style.fontSize=fs+'px';
-    while(box.scrollHeight > box.clientHeight && fs > 8){ fs-=0.5; box.style.fontSize=fs+'px'; }
-    // フォントが縮小限界近く（≦9px）まで下がった時だけ＝本当に長すぎる時だけ警告
-    const warn=document.getElementById('pageWarn'); if(!warn) return;
+    const min = printMode ? 6 : 8;
+    while(box.scrollHeight > box.clientHeight && fs > min){ fs-=0.5; box.style.fontSize=fs+'px'; }
+    // フォントが縮小限界近く（≦9px）まで下がった時だけ＝本当に長すぎる時だけ警告（画面表示時のみ）
+    const warn=document.getElementById('pageWarn'); if(!warn || printMode) return;
     if(fs <= 9){
       warn.style.display='block';
       warn.textContent='⚠️ 作業内容・特記事項が長く、文字がかなり小さくなっています。読みやすさのため、文章を短くするか写真を減らすのがおすすめです。';
     } else { warn.style.display='none'; }
   }
+  function doPrint(){
+    fitReport(true);          // 印刷スナップショットは print() 呼び出し時点で確定する
+    window.print();
+  }
+  window.addEventListener('afterprint', ()=>{ fitReport(false); scaleSheet(); });
   window.addEventListener('resize', scaleSheet);
 
   function fmtDate(v){ if(!v)return '';
