@@ -140,13 +140,14 @@
 
   @media print{
     @page{ size:A4; margin:0; }
-    html,body{ background:#fff; }
-    .toggle-bar, #inputView, .actions{ display:none !important; }
+    html,body{ background:#fff; margin:0; padding:0; }
+    .toggle-bar, #inputView, .actions, .page-warn{ display:none !important; }
     #previewView{ display:block !important; padding:0; }
-    .wrap{ padding:0; max-width:none; }
-    .sheet-scale{ overflow:visible; height:auto !important; }
-    .sheet{ box-shadow:none; border-radius:0; width:210mm; padding:10mm 12mm;
-      transform:none !important; }
+    .wrap{ padding:0; margin:0; max-width:none; }
+    .sheet-scale{ overflow:hidden; height:auto !important; margin:0; }
+    /* 高さを用紙1枚分より僅かに小さく固定し、はみ出しは切る＝2枚目の白紙を出さない */
+    .sheet{ box-shadow:none; border-radius:0; width:210mm; height:296mm; overflow:hidden;
+      padding:10mm 12mm; transform:none !important; }
     .pv-photos{ break-inside:avoid; }
     .pv-photo, .report-sec, .rline{ break-inside:avoid; }
   }

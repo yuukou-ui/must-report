@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>報告書まとめツール｜マスト管理 有限会社</title>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<style>
+  :root{
+    --navy:#14315e; --navy2:#1f4a8a; --orange:#ff7a18; --orange2:#e85d00;
+    --bg:#f4f7fb; --bg2:#eef2f8; --line:#d8dee9; --ink:#1a2233; --muted:#5b6577;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+    color:var(--ink); background:var(--bg2); line-height:1.6; }
+  .topbar{ background:var(--navy); color:#fff; padding:14px; text-align:center; }
+  .topbar h1{ margin:0; font-size:17px; letter-spacing:.1em; }
+  .topbar p{ margin:4px 0 0; font-size:12px; opacity:.85; }
+  .wrap{ max-width:680px; margin:0 auto; padding:16px 14px 40px; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .card h2{ margin:0 0 12px; font-size:15px; color:var(--navy); display:flex; align-items:center; gap:7px; }
+  .card h2 .num{ width:24px; height:24px; border-radius:7px; background:var(--orange); color:#fff; font-size:13px;
+    display:inline-flex; align-items:center; justify-content:center; }
+
+  .drop{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+    padding:26px 16px; border:2px dashed var(--navy2); border-radius:12px; background:#fafbfd;
+    color:var(--navy); font-weight:700; font-size:15px; cursor:pointer; position:relative; text-align:center; }
+  .drop.over{ border-color:var(--orange); background:#fff6ee; }
+  .drop input[type=file]{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .drop .big{ font-size:26px; }
+  .drop small{ font-weight:400; color:var(--muted); }
+
+  .plist{ list-style:none; margin:12px 0 0; padding:0; }
+  .plist li{ display:flex; align-items:center; gap:8px; padding:9px 10px; border:1px solid var(--line);
+    border-radius:10px; margin-bottom:7px; background:#fafbfd; font-size:13.5px; }
+  .plist .no{ flex:none; width:24px; height:24px; border-radius:50%; background:var(--navy); color:#fff;
+    font-size:12px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; }
+  .plist .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
+  .plist button{ flex:none; width:30px; height:30px; border:1px solid var(--line); border-radius:8px;
+    background:#fff; color:var(--navy); font-size:14px; cursor:pointer; }
+  .plist button:disabled{ opacity:.3; cursor:default; }
+  .plist button.rm{ color:var(--orange2); }
+  .empty-note{ margin:12px 2px 0; font-size:13px; color:var(--muted); }
+
+  label.fld{ display:block; margin-bottom:14px; }
+  label.fld:last-child{ margin-bottom:0; }
+  label.fld > span{ display:block; font-size:13px; font-weight:700; color:var(--muted); margin-bottom:5px; }
+  input[type=text]{ width:100%; padding:13px 12px; font-size:16px;
+    border:1.5px solid var(--line); border-radius:10px; color:var(--ink); font-family:inherit; }
+  input[type=text]:focus{ outline:none; border-color:var(--orange); }
+
+  .btn-merge{ width:100%; padding:16px; font-size:16px; font-weight:800; border:none; border-radius:12px;
+    cursor:pointer; color:#fff; background:linear-gradient(135deg,var(--orange) 0%,var(--orange2) 100%); }
+  .btn-merge:disabled{ opacity:.45; cursor:default; }
+  .status{ margin-top:12px; padding:11px 14px; border-radius:10px; font-size:13.5px; font-weight:700;
+    text-align:center; display:none; }
+  .status.ok{ display:block; background:#e9f7ec; color:#1b7a36; border:1px solid #bfe5c8; }
+  .status.ng{ display:block; background:#fdeee2; color:#b3500a; border:1px solid #f7c9a3; }
+  .hint{ font-size:12px; color:var(--muted); margin:10px 2px 0; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>📚 清掃報告書 まとめツール</h1>
+  <p>半月分の報告書PDFを1つのファイルに結合します（マスト管理 有限会社）</p>
+</div>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2><span class="num">1</span>報告書PDFを選ぶ</h2>
+    <label class="drop" id="drop">
+      <span class="big">📄</span>
+      <span>ここにPDFをドラッグ＆ドロップ<br>またはタップして選択（複数OK）</span>
+      <small>ファイル名の順（＝日付順）に自動で並びます</small>
+      <input type="file" id="pdfInput" accept="application/pdf,.pdf" multiple>
+    </label>
+    <ul class="plist" id="plist"></ul>
+    <p class="empty-note" id="emptyNote">まだPDFが選ばれていません。</p>
+    <p class="hint">並び順は ↑↓ ボタンで変更できます。この順番どおりに結合されます。</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">2</span>宛先と期間（ファイル名に使います）</h2>
+    <label class="fld"><span>宛先（取引企業名）</span>
+      <input type="text" id="f_company" placeholder="例：〇〇不動産"></label>
+    <label class="fld"><span>期間</span>
+      <input type="text" id="f_period" placeholder="例：2026年6月前半"></label>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">3</span>1つのPDFに結合</h2>
+    <button class="btn-merge" id="btnMerge" onclick="merge()" disabled>📚 結合してダウンロード</button>
+    <div class="status" id="status"></div>
+  </div>
+
+</div>
+
+<script>
+  let items = [];   // {name, bytes}
+
+  const drop = document.getElementById('drop');
+  document.getElementById('pdfInput').addEventListener('change', e=>{ addFiles(e.target.files); e.target.value=''; });
+  drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', ()=>drop.classList.remove('over'));
+  drop.addEventListener('drop', e=>{ e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); });
+
+  async function addFiles(fileList){
+    const files = [...fileList].filter(f=>/\.pdf$/i.test(f.name) || f.type==='application/pdf');
+    if(!files.length){ setStatus('ng','PDFファイルを選んでください。'); return; }
+    for(const f of files){
+      if(items.some(it=>it.name===f.name)) continue;   // 同名は二重登録しない
+      items.push({ name:f.name, bytes:await f.arrayBuffer() });
+    }
+    items.sort((a,b)=>a.name.localeCompare(b.name,'ja'));   // 報告書名は「…_物件_日付」なので名前順≒日付順
+    renderList(); setStatus('','');
+  }
+
+  function renderList(){
+    const ul=document.getElementById('plist');
+    ul.innerHTML = items.map((it,i)=>`<li>
+      <span class="no">${i+1}</span><span class="nm">${esc(it.name)}</span>
+      <button onclick="move(${i},-1)" ${i===0?'disabled':''}>↑</button>
+      <button onclick="move(${i},1)" ${i===items.length-1?'disabled':''}>↓</button>
+      <button class="rm" onclick="remove(${i})">×</button>
+    </li>`).join('');
+    document.getElementById('emptyNote').style.display = items.length ? 'none' : 'block';
+    document.getElementById('btnMerge').disabled = items.length < 1;
+  }
+  function move(i,d){ const j=i+d; if(j<0||j>=items.length)return; [items[i],items[j]]=[items[j],items[i]]; renderList(); }
+  function remove(i){ items.splice(i,1); renderList(); }
+
+  async function merge(){
+    const btn=document.getElementById('btnMerge');
+    btn.disabled=true; setStatus('ok','結合中…少しお待ちください');
+    try{
+      const out = await PDFLib.PDFDocument.create();
+      for(const it of items){
+        const src = await PDFLib.PDFDocument.load(it.bytes, { ignoreEncryption:true });
+        const pages = await out.copyPages(src, src.getPageIndices());
+        pages.forEach(p=>out.addPage(p));
+      }
+      const bytes = await out.save();
+      const company=document.getElementById('f_company').value.trim();
+      const period=document.getElementById('f_period').value.trim();
+      const name = ['清掃報告書まとめ', company, period].filter(s=>s).join('_') + '.pdf';
+      const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
+      const a=document.createElement('a'); a.href=url; a.download=name; a.click();
+      setTimeout(()=>URL.revokeObjectURL(url), 10000);
+      setStatus('ok',`✅ ${items.length}件・${out.getPageCount()}ページを「${name}」として保存しました`);
+    }catch(err){
+      setStatus('ng','結合に失敗しました：'+err.message);
+    }
+    btn.disabled = items.length < 1;
+  }
+
+  function setStatus(type,msg){ const s=document.getElementById('status');
+    s.className='status'+(type?' '+type:''); s.textContent=msg; }
+  function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+</script>
+</body>
+</html>
