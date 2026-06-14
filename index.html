@@ -78,7 +78,7 @@
   .sheet-scale{ overflow:hidden; margin:0 auto; }
   /* A4の縦横比(794:1123)に固定。中身を縦に積み、写真エリアが残りスペースを埋める＝常に締まった1枚 */
   .sheet{ background:#fff; width:794px; height:1123px; overflow:hidden;
-    display:flex; flex-direction:column; padding:34px 74px 26px; transform-origin:top left;
+    display:flex; flex-direction:column; padding:26px 64px 20px; transform-origin:top left;
     box-shadow:0 4px 20px rgba(20,49,94,.12); border-radius:6px; }
 
   /* タイトル中央＋細い青→オレンジ線（スパイス） */
@@ -88,7 +88,7 @@
     background:linear-gradient(90deg,var(--navy) 0%,var(--navy2) 50%,var(--orange) 100%); border-radius:2px; }
 
   /* 見出し下の本体：左に項目、右に会社情報 */
-  .head-row{ display:flex; justify-content:space-between; gap:20px; margin-top:16px;
+  .head-row{ display:flex; justify-content:space-between; gap:20px; margin-top:12px;
     align-items:flex-start; }
   .fields{ flex:none; }
   .frow{ display:flex; align-items:baseline; gap:12px; margin-bottom:13px; }
@@ -104,7 +104,7 @@
   .company .cname{ font-size:15.5px; font-weight:800; color:var(--navy); letter-spacing:.02em; }
 
   /* 目視報告 */
-  .report-sec{ margin-top:14px; }
+  .report-sec{ margin-top:11px; }
   .sec-title{ font-size:16.5px; font-weight:800; color:var(--navy); letter-spacing:.3em;
     padding-left:11px; border-left:5px solid var(--orange); margin-bottom:10px; }
   /* 固定高さ。行が増えたらJSがフォントを縮めて必ず枠内に収める */
@@ -118,7 +118,7 @@
 
   /* 写真 2列×4段（実物どおり・小さめ＆中央寄せ）※A4 1枚に収まるサイズ */
   /* 写真は常に4:3固定。列幅と行高はJS(layoutPhotos)が残りスペースに合わせて算出し、最大サイズで中央に並べる */
-  .pv-photos{ flex:1; min-height:0; display:grid; gap:12px 28px; margin-top:12px;
+  .pv-photos{ flex:1; min-height:0; display:grid; gap:12px 28px; margin-top:10px;
     justify-content:center; align-content:flex-start; }
   .pv-photo{ position:relative; aspect-ratio:4/3; border:1px solid var(--line); border-radius:4px;
     overflow:hidden; background:var(--bg); }
@@ -421,7 +421,7 @@
       sheet.style.transform=prevT; scaleSheet();
       const { jsPDF }=window.jspdf;
       const pdf=new jsPDF('p','mm','a4');
-      const PW=210, PH=297, M=10;                    // A4サイズと、上下左右に確保する余白(mm)
+      const PW=210, PH=297, M=7;                     // A4サイズと、上下左右に確保する余白(mm)
       const AW=PW-2*M, AH=PH-2*M;                     // 余白を除いた配置可能エリア
       let w=AW, h=AW*canvas.height/canvas.width;      // まず幅基準。はみ出す高さは縮小フィット
       if(h>AH){ h=AH; w=AH*canvas.width/canvas.height; }
