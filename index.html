@@ -404,10 +404,11 @@
       sheet.style.transform=prevT; scaleSheet();
       const { jsPDF }=window.jspdf;
       const pdf=new jsPDF('p','mm','a4');
-      const PW=210, PH=297;
-      let w=PW, h=PW*canvas.height/canvas.width;     // 用紙幅に合わせ、はみ出す高さは縮小フィット
-      if(h>PH){ h=PH; w=PH*canvas.width/canvas.height; }
-      pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',(PW-w)/2,0,w,h);
+      const PW=210, PH=297, M=10;                    // A4サイズと、上下左右に確保する余白(mm)
+      const AW=PW-2*M, AH=PH-2*M;                     // 余白を除いた配置可能エリア
+      let w=AW, h=AW*canvas.height/canvas.width;      // まず幅基準。はみ出す高さは縮小フィット
+      if(h>AH){ h=AH; w=AH*canvas.width/canvas.height; }
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',(PW-w)/2,M,w,h);
       _pdfName=(document.title||'清掃報告書')+'.pdf';
       _pdfBlob=pdf.output('blob');
       document.getElementById('btnSave').style.display='block';
