@@ -266,16 +266,10 @@
 <script>
   const MAX_PHOTOS = 8;
   let _pdfBlob=null, _pdfName='';   // 作成したPDFを保持し、共有ボタンの押下時に使う
-  let works = [
-    {name:"掃き掃除", checked:false},
-    {name:"拭き・モップがけ", checked:false},
-    {name:"ゴミ置き場 清掃", checked:false},
-    {name:"クモの巣・卵 除去", checked:false},
-    {name:"手すり・ガラス拭き", checked:false},
-    {name:"除草・除草剤散布", checked:false},
-    {name:"ゴミ収集・搬出", checked:false},
-    {name:"設備点検・異常確認", checked:false},
-  ];
+  // 作業内容は初期は空。使用者が追加した項目を端末(localStorage)に保存し、削除するまで次回も表示する
+  function loadWorks(){ try{ return (JSON.parse(localStorage.getItem('workItems')||'[]')).map(n=>({name:n,checked:false})); }catch(e){ return []; } }
+  function storeWorks(){ try{ localStorage.setItem('workItems', JSON.stringify(works.map(w=>w.name))); }catch(e){} }
+  let works = loadWorks();
   let photos = [];
 
   /* 作業内容（定番タップ） */
@@ -291,10 +285,10 @@
     });
   }
   function toggleWork(i,c){ works[i].checked=c; renderChecks(); render(); }
-  function delWork(i){ works.splice(i,1); renderChecks(); render(); }
+  function delWork(i){ works.splice(i,1); storeWorks(); renderChecks(); render(); }
   function addWork(){
     const inp=document.getElementById('newWork'); const name=inp.value.trim(); if(!name)return;
-    works.push({name,checked:true}); inp.value=''; renderChecks(); render();
+    works.push({name,checked:true}); storeWorks(); inp.value=''; renderChecks(); render();
   }
 
   /* 写真（取り込み時に自動圧縮：長辺1400px・JPEG。スマホ写真が数MBあっても軽くなる） */
@@ -481,7 +475,7 @@
 
     // 作業内容・特記事項：チェック項目（済み）＋自由記入の各行。最低5行の罫線を用意
     const lines=[];
-    works.filter(w=>w.checked).forEach(w=> lines.push({t:'chk', text:w.name+' 済み'}));
+    works.filter(w=>w.checked).forEach(w=> lines.push({t:'chk', text:w.name}));
     val('f_notes').split('\n').map(s=>s.trim()).filter(s=>s).forEach(s=> lines.push({t:'free', text:s}));
     while(lines.length < 5) lines.push({t:'blank', text:''});
     const box=document.getElementById('pv_report');
