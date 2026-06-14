@@ -404,6 +404,7 @@
     let cellH=(availH-(rows-1)*rg)/rows;                  // 残り高さを段数で割る
     let cellW=cellH*4/3;
     if(2*cellW+cg > innerW) cellW=(innerW-cg)/2;          // 横にあふれる時だけ幅基準に
+    box.style.columnGap=cg+'px';                          // 実際の列の隙間にも反映
     box.style.gridTemplateColumns='repeat(2, '+Math.floor(cellW)+'px)';
   }
 
