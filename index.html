@@ -95,7 +95,8 @@
   .flabel{ font-size:15px; font-weight:700; color:var(--navy); letter-spacing:.5em;
     width:92px; flex:none; text-align:justify; text-justify:inter-character; }
   .fvalue{ width:240px; flex:none; font-size:18px; font-weight:700; color:var(--ink); padding:0 6px 4px;
-    border-bottom:1.5px solid var(--navy); min-height:1.4em; text-align:center; }
+    border-bottom:1.5px solid var(--navy); height:1.6em; text-align:center;
+    white-space:nowrap; overflow:hidden; }
   .fvalue.empty{ color:var(--muted); font-weight:400; border-bottom-color:var(--line); }
   .fvalue.worker{ letter-spacing:.5em; text-indent:.5em; }
 
@@ -118,7 +119,7 @@
   /* 写真 2列×4段（実物どおり・小さめ＆中央寄せ）※A4 1枚に収まるサイズ */
   /* 写真は常に4:3固定。列幅と行高はJS(layoutPhotos)が残りスペースに合わせて算出し、最大サイズで中央に並べる */
   .pv-photos{ flex:1; min-height:0; display:grid; gap:12px 28px; margin-top:16px;
-    justify-content:center; align-content:center; }
+    justify-content:center; align-content:flex-start; }
   .pv-photo{ position:relative; aspect-ratio:4/3; border:1px solid var(--line); border-radius:4px;
     overflow:hidden; background:var(--bg); }
   .pv-photo img{ width:100%; height:100%; object-fit:cover; display:block; }
@@ -393,15 +394,16 @@
     } else { warn.style.display='none'; }
   }
 
-  /* 写真は4:3固定のまま、残りスペースに収まる最大サイズで2列に並べる（列幅をJSで算出。高さは4:3で自動） */
+  /* 写真は4:3固定。写真サイズと位置は枚数に関わらず常に一定にする（複数枚を見比べた時に揃うよう固定）。
+     常に4段(rows=4)分のサイズで算出し、上詰めで配置する。 */
   function layoutPhotos(){
     const box=document.getElementById('pv_photos');
     if(!box || !photos.length) return;
-    const rg=12, cg=96;                                   // 写真間の縦・横の隙間(px)。横は広めにして2列を離す
-    const rows=Math.max(1, Math.ceil(photos.length/2));
+    const rg=12, cg=96;                                   // 写真間の縦・横の隙間(px)
+    const rows=4;                                         // 常に4段分で固定（枚数が減っても写真サイズは変えない）
     const availH=box.clientHeight, innerW=box.clientWidth;
     if(availH<=0 || innerW<=0) return;
-    let cellH=(availH-(rows-1)*rg)/rows;                  // 残り高さを段数で割る
+    let cellH=(availH-(rows-1)*rg)/rows;                  // 写真エリア高さを常に4段で割る
     let cellW=cellH*4/3;
     if(2*cellW+cg > innerW) cellW=(innerW-cg)/2;          // 横にあふれる時だけ幅基準に
     box.style.columnGap=cg+'px';                          // 実際の列の隙間にも反映
@@ -463,6 +465,9 @@
     const e=document.getElementById(id);
     if(v){ e.textContent=v; e.classList.remove('empty'); }
     else { e.textContent='未入力'; e.classList.add('empty'); }
+    // 物件名などが長くても枠内に1行で収める（フォントだけ縮小、レイアウト高さは固定のまま）
+    e.style.fontSize=''; let fs=18;
+    while(e.scrollWidth>e.clientWidth && fs>10){ fs-=0.5; e.style.fontSize=fs+'px'; }
   }
 
   function render(){
