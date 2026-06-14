@@ -421,7 +421,7 @@
       sheet.style.transform=prevT; scaleSheet();
       const { jsPDF }=window.jspdf;
       const pdf=new jsPDF('p','mm','a4');
-      const PW=210, PH=297, M=14;                    // A4サイズと、上下左右に確保する余白(mm)
+      const PW=210, PH=297, M=10;                    // A4サイズと、上下左右に確保する余白(mm)
       const AW=PW-2*M, AH=PH-2*M;                     // 余白を除いた配置可能エリア
       let w=AW, h=AW*canvas.height/canvas.width;      // まず幅基準。はみ出す高さは縮小フィット
       if(h>AH){ h=AH; w=AH*canvas.width/canvas.height; }
