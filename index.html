@@ -158,6 +158,8 @@
     .sheet-foot{ margin-top:2.5mm; padding-top:1.5mm; }
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -250,8 +252,8 @@
 
 <div class="actions" id="actions" style="display:none;">
   <button class="btn-back" onclick="switchView('input')">← 入力にもどる</button>
-  <button class="btn-pdf" onclick="doPrint()">📄 PDF / 印刷</button>
-  <p class="print-hint">※「自動的に印刷することは禁止…」と表示されたら「<b>許可</b>」を押してください（2回目以降に出るiPhoneの確認です）</p>
+  <button class="btn-pdf" id="btnPdf" onclick="makePDF()">📄 PDFを作成</button>
+  <p class="print-hint">ボタンを押すとA4・1枚のPDFができます。表示されたら共有ボタンから「ファイルに保存」やLINE送信ができます。</p>
 </div>
 
 <script>
@@ -382,11 +384,28 @@
       warn.textContent='⚠️ 作業内容・特記事項が長く、文字がかなり小さくなっています。読みやすさのため、文章を短くするか写真を減らすのがおすすめです。';
     } else { warn.style.display='none'; }
   }
-  function doPrint(){
-    fitReport(true);          // 印刷スナップショットは print() 呼び出し時点で確定する
-    window.print();
+  /* ブラウザの印刷機能を使わず、報告書を画像化してA4 1枚のPDFを直接生成する。
+     これにより iOS Safari が付けるURL/日付/ページ番号が一切入らず、必ず1枚に収まる。 */
+  async function makePDF(){
+    const btn=document.getElementById('btnPdf');
+    const old=btn.textContent; btn.disabled=true; btn.textContent='PDFを作成中…';
+    try{
+      const sheet=document.getElementById('sheet');
+      const prevT=sheet.style.transform;
+      sheet.style.transform='none';      // 画面用の縮小を解いて実寸でキャプチャ
+      fitReport(false);
+      const canvas=await html2canvas(sheet,{ scale:2, backgroundColor:'#ffffff', useCORS:true });
+      sheet.style.transform=prevT; scaleSheet();
+      const { jsPDF }=window.jspdf;
+      const pdf=new jsPDF('p','mm','a4');
+      const PW=210, PH=297;
+      let w=PW, h=PW*canvas.height/canvas.width;     // 用紙幅に合わせ、はみ出す高さは縮小フィット
+      if(h>PH){ h=PH; w=PH*canvas.width/canvas.height; }
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',(PW-w)/2,0,w,h);
+      pdf.save((document.title||'清掃報告書')+'.pdf');
+    }catch(e){ alert('PDF作成に失敗しました：'+(e&&e.message||e)); }
+    btn.disabled=false; btn.textContent=old;
   }
-  window.addEventListener('afterprint', ()=>{ fitReport(false); scaleSheet(); });
   window.addEventListener('resize', scaleSheet);
 
   function fmtDate(v){ if(!v)return '';
