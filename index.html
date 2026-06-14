@@ -125,8 +125,8 @@
 
   .sheet-foot{ margin-top:12px; padding-top:8px; border-top:1px solid var(--line);
     display:flex; justify-content:space-between; align-items:center; font-size:10px; color:var(--muted); }
-  .sheet-foot .brandline{ color:var(--navy); font-weight:700; }
-  .sheet-foot .brandline .o{ color:var(--orange2); }
+  .sheet-foot .brandline{ color:var(--ink); font-weight:700; }
+  .sheet-foot .brandline .o{ color:inherit; }
 
   .actions{ max-width:720px; margin:16px auto 30px; display:flex; flex-wrap:wrap; gap:10px; padding:0 14px; }
   .actions button{ flex:1; padding:15px; font-size:15px; font-weight:800; border:none; border-radius:12px; cursor:pointer; color:#fff; }
@@ -146,10 +146,11 @@
     #previewView{ display:block !important; padding:0; }
     .wrap{ padding:0; margin:0; max-width:none; }
     .sheet-scale{ overflow:visible; height:auto !important; margin:0; }
-    /* iPhone等の印刷はプリンタ余白を勝手に確保する。余白込みでも必ず1枚に収まるよう
-       写真サイズは維持しつつコメント欄と各間隔を圧縮（コメント欄の高さは印刷時JSが110pxに切替） */
-    .sheet{ box-shadow:none; border-radius:0; width:auto; height:auto; overflow:visible;
-      padding:4mm 12mm 0; transform:none !important; }
+    /* iPhone等の印刷はプリンタ余白を勝手に確保する。写真サイズは維持しつつ各間隔を圧縮し、
+       さらに用紙1枚分に高さ上限(max-height)＋はみ出しclipで2枚目を物理的に断つ
+       （コメント欄の高さは印刷時JSが110pxに切替） */
+    .sheet{ box-shadow:none; border-radius:0; width:auto; max-height:268mm; overflow:hidden;
+      padding:4mm 12mm 4mm; transform:none !important; }
     .head-row{ margin-top:3mm; }
     .report-sec{ margin-top:2mm; break-inside:avoid; }
     .pv-photos{ grid-template-columns:repeat(2,46mm); gap:1.5mm 12mm; margin-top:2.5mm; }
