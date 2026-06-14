@@ -78,55 +78,56 @@
   .sheet-scale{ overflow:hidden; margin:0 auto; }
   /* A4の縦横比(794:1123)に固定。中身を縦に積み、写真エリアが残りスペースを埋める＝常に締まった1枚 */
   .sheet{ background:#fff; width:794px; height:1123px; overflow:hidden;
-    display:flex; flex-direction:column; padding:52px 52px 40px; transform-origin:top left;
+    display:flex; flex-direction:column; padding:46px 50px 34px; transform-origin:top left;
     box-shadow:0 4px 20px rgba(20,49,94,.12); border-radius:6px; }
 
   /* タイトル中央＋細い青→オレンジ線（スパイス） */
-  .doc-title{ text-align:center; font-size:21px; font-weight:800; letter-spacing:.5em; color:var(--navy);
+  .doc-title{ text-align:center; font-size:27px; font-weight:800; letter-spacing:.5em; color:var(--navy);
     text-indent:.5em; }
-  .doc-title-line{ width:340px; max-width:80%; height:2.5px; margin:7px auto 0;
+  .doc-title-line{ width:360px; max-width:80%; height:3px; margin:9px auto 0;
     background:linear-gradient(90deg,var(--navy) 0%,var(--navy2) 50%,var(--orange) 100%); border-radius:2px; }
 
   /* 見出し下の本体：左に項目、右に会社情報 */
-  .head-row{ display:flex; justify-content:space-between; gap:20px; margin-top:18px;
+  .head-row{ display:flex; justify-content:space-between; gap:20px; margin-top:22px;
     align-items:flex-start; }
   .fields{ flex:none; }
-  .frow{ display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
-  .flabel{ font-size:13px; font-weight:700; color:var(--navy); letter-spacing:.5em;
-    width:78px; flex:none; text-align:justify; text-justify:inter-character; }
-  .fvalue{ width:190px; flex:none; font-size:15px; font-weight:700; color:var(--ink); padding:0 4px 3px;
+  .frow{ display:flex; align-items:baseline; gap:12px; margin-bottom:13px; }
+  .flabel{ font-size:15px; font-weight:700; color:var(--navy); letter-spacing:.5em;
+    width:92px; flex:none; text-align:justify; text-justify:inter-character; }
+  .fvalue{ width:240px; flex:none; font-size:18px; font-weight:700; color:var(--ink); padding:0 6px 4px;
     border-bottom:1.5px solid var(--navy); min-height:1.4em; text-align:center; }
   .fvalue.empty{ color:var(--muted); font-weight:400; border-bottom-color:var(--line); }
   .fvalue.worker{ letter-spacing:.5em; text-indent:.5em; }
 
-  .company{ text-align:right; font-size:10.5px; line-height:1.6; color:var(--ink); width:250px; flex:none; }
-  .company .cname{ font-size:13.5px; font-weight:800; color:var(--navy); letter-spacing:.02em; }
+  .company{ text-align:right; font-size:12px; line-height:1.65; color:var(--ink); width:270px; flex:none; }
+  .company .cname{ font-size:15.5px; font-weight:800; color:var(--navy); letter-spacing:.02em; }
 
   /* 目視報告 */
-  .report-sec{ margin-top:14px; }
-  .sec-title{ font-size:14px; font-weight:800; color:var(--navy); letter-spacing:.3em;
-    padding-left:9px; border-left:4px solid var(--orange); margin-bottom:8px; }
-  /* 固定高さ。行が増えたらJSがフォントを縮めて必ず枠内に収める＝2枚目に行かない */
-  .report-lines{ height:96px; overflow:hidden; font-size:13.5px; }
-  .rline{ font-size:1em; line-height:1.5; color:var(--ink); padding:.18em 2px .3em;
-    border-bottom:1px solid var(--line); display:flex; gap:7px; min-height:1.5em; }
+  .report-sec{ margin-top:18px; }
+  .sec-title{ font-size:16.5px; font-weight:800; color:var(--navy); letter-spacing:.3em;
+    padding-left:11px; border-left:5px solid var(--orange); margin-bottom:10px; }
+  /* 固定高さ。行が増えたらJSがフォントを縮めて必ず枠内に収める */
+  .report-lines{ height:108px; overflow:hidden; font-size:15.5px; }
+  .rline{ font-size:1em; line-height:1.55; color:var(--ink); padding:.2em 2px .32em;
+    border-bottom:1px solid var(--line); display:flex; gap:8px; min-height:1.55em; }
   .rline::before{ content:"✓"; color:var(--orange2); font-weight:800; flex:none; }
   .rline.free::before{ content:"・"; color:var(--navy2); }
   .rline.blank::before{ content:""; }
   .rtext{ flex:1; min-width:0; overflow-wrap:anywhere; }
 
   /* 写真 2列×4段（実物どおり・小さめ＆中央寄せ）※A4 1枚に収まるサイズ */
-  .pv-photos{ flex:1; min-height:0; display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:1fr;
-    gap:10px 26px; margin-top:14px; }
-  .pv-photo{ position:relative; height:100%; min-height:0; border:1px solid var(--line); border-radius:4px;
+  /* 写真は常に4:3固定。列幅と行高はJS(layoutPhotos)が残りスペースに合わせて算出し、最大サイズで中央に並べる */
+  .pv-photos{ flex:1; min-height:0; display:grid; gap:12px 28px; margin-top:16px;
+    justify-content:center; align-content:center; }
+  .pv-photo{ position:relative; aspect-ratio:4/3; border:1px solid var(--line); border-radius:4px;
     overflow:hidden; background:var(--bg); }
   .pv-photo img{ width:100%; height:100%; object-fit:cover; display:block; }
   .pv-photo.spare::after{ content:"予備"; position:absolute; top:5px; left:5px; font-size:10px;
     background:rgba(255,255,255,.85); color:var(--muted); padding:1px 6px; border-radius:3px; }
   .pv-photos .empty-ph{ grid-column:1/3; color:var(--muted); font-size:12px; text-align:center; padding:12px; }
 
-  .sheet-foot{ margin-top:12px; padding-top:8px; border-top:1px solid var(--line);
-    display:flex; justify-content:space-between; align-items:center; font-size:10px; color:var(--muted); }
+  .sheet-foot{ margin-top:14px; padding-top:9px; border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--muted); }
   .sheet-foot .brandline{ color:var(--ink); font-weight:700; }
   .sheet-foot .brandline .o{ color:inherit; }
 
@@ -370,6 +371,7 @@
     const avail=scaleWrap.clientWidth;
     const s=Math.min(1, avail/794);
     fitReport();
+    layoutPhotos();
     sheet.style.transform='scale('+s+')';
     scaleWrap.style.height=(sheet.offsetHeight*s)+'px';
   }
@@ -380,8 +382,8 @@
   function fitReport(printMode){
     const box=document.getElementById('pv_report'); if(!box) return;
     box.style.height = printMode ? PRINT_LINES_H+'px' : '';
-    let fs=13.5; box.style.fontSize=fs+'px';
-    const min = printMode ? 6 : 8;
+    let fs=15.5; box.style.fontSize=fs+'px';
+    const min = printMode ? 6 : 9;
     while(box.scrollHeight > box.clientHeight && fs > min){ fs-=0.5; box.style.fontSize=fs+'px'; }
     // フォントが縮小限界近く（≦9px）まで下がった時だけ＝本当に長すぎる時だけ警告（画面表示時のみ）
     const warn=document.getElementById('pageWarn'); if(!warn || printMode) return;
@@ -390,6 +392,21 @@
       warn.textContent='⚠️ 作業内容・特記事項が長く、文字がかなり小さくなっています。読みやすさのため、文章を短くするか写真を減らすのがおすすめです。';
     } else { warn.style.display='none'; }
   }
+
+  /* 写真は4:3固定のまま、残りスペースに収まる最大サイズで2列に並べる（列幅をJSで算出。高さは4:3で自動） */
+  function layoutPhotos(){
+    const box=document.getElementById('pv_photos');
+    if(!box || !photos.length) return;
+    const rg=12, cg=28;                                   // 写真間の縦・横の隙間(px)
+    const rows=Math.max(1, Math.ceil(photos.length/2));
+    const availH=box.clientHeight, innerW=box.clientWidth;
+    if(availH<=0 || innerW<=0) return;
+    let cellH=(availH-(rows-1)*rg)/rows;                  // 残り高さを段数で割る
+    let cellW=cellH*4/3;
+    if(2*cellW+cg > innerW) cellW=(innerW-cg)/2;          // 横にあふれる時だけ幅基準に
+    box.style.gridTemplateColumns='repeat(2, '+Math.floor(cellW)+'px)';
+  }
+
   /* ブラウザの印刷機能を使わず、報告書を画像化してA4 1枚のPDFを直接生成する。
      これにより iOS Safari が付けるURL/日付/ページ番号が一切入らず、必ず1枚に収まる。 */
   async function makePDF(){
@@ -402,6 +419,7 @@
       const prevT=sheet.style.transform;
       sheet.style.transform='none';      // 画面用の縮小を解いて実寸でキャプチャ
       fitReport(false);
+      layoutPhotos();
       const canvas=await html2canvas(sheet,{ scale:2, backgroundColor:'#ffffff', useCORS:true });
       sheet.style.transform=prevT; scaleSheet();
       const { jsPDF }=window.jspdf;
