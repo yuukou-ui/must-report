@@ -76,7 +76,9 @@
   #previewView{ display:none; }
   /* A4を実寸(794px)で組み、スマホでは縮小して画面幅にフィットさせる */
   .sheet-scale{ overflow:hidden; margin:0 auto; }
-  .sheet{ background:#fff; width:794px; padding:49px 45px; transform-origin:top left;
+  /* A4の縦横比(794:1123)に固定。中身を縦に積み、写真エリアが残りスペースを埋める＝常に締まった1枚 */
+  .sheet{ background:#fff; width:794px; height:1123px; overflow:hidden;
+    display:flex; flex-direction:column; padding:52px 52px 40px; transform-origin:top left;
     box-shadow:0 4px 20px rgba(20,49,94,.12); border-radius:6px; }
 
   /* タイトル中央＋細い青→オレンジ線（スパイス） */
@@ -105,7 +107,7 @@
   .sec-title{ font-size:14px; font-weight:800; color:var(--navy); letter-spacing:.3em;
     padding-left:9px; border-left:4px solid var(--orange); margin-bottom:8px; }
   /* 固定高さ。行が増えたらJSがフォントを縮めて必ず枠内に収める＝2枚目に行かない */
-  .report-lines{ height:170px; overflow:hidden; font-size:13.5px; }
+  .report-lines{ height:96px; overflow:hidden; font-size:13.5px; }
   .rline{ font-size:1em; line-height:1.5; color:var(--ink); padding:.18em 2px .3em;
     border-bottom:1px solid var(--line); display:flex; gap:7px; min-height:1.5em; }
   .rline::before{ content:"✓"; color:var(--orange2); font-weight:800; flex:none; }
@@ -114,9 +116,9 @@
   .rtext{ flex:1; min-width:0; overflow-wrap:anywhere; }
 
   /* 写真 2列×4段（実物どおり・小さめ＆中央寄せ）※A4 1枚に収まるサイズ */
-  .pv-photos{ display:grid; grid-template-columns:repeat(2,190px); justify-content:center;
-    gap:8px 60px; margin-top:12px; }
-  .pv-photo{ position:relative; aspect-ratio:4/3; border:1px solid var(--line); border-radius:4px;
+  .pv-photos{ flex:1; min-height:0; display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:1fr;
+    gap:10px 26px; margin-top:14px; }
+  .pv-photo{ position:relative; height:100%; min-height:0; border:1px solid var(--line); border-radius:4px;
     overflow:hidden; background:var(--bg); }
   .pv-photo img{ width:100%; height:100%; object-fit:cover; display:block; }
   .pv-photo.spare::after{ content:"予備"; position:absolute; top:5px; left:5px; font-size:10px;
@@ -404,11 +406,11 @@
       sheet.style.transform=prevT; scaleSheet();
       const { jsPDF }=window.jspdf;
       const pdf=new jsPDF('p','mm','a4');
-      const PW=210, PH=297, M=10;                    // A4サイズと、上下左右に確保する余白(mm)
+      const PW=210, PH=297, M=14;                    // A4サイズと、上下左右に確保する余白(mm)
       const AW=PW-2*M, AH=PH-2*M;                     // 余白を除いた配置可能エリア
       let w=AW, h=AW*canvas.height/canvas.width;      // まず幅基準。はみ出す高さは縮小フィット
       if(h>AH){ h=AH; w=AH*canvas.width/canvas.height; }
-      pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',(PW-w)/2,M,w,h);
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',(PW-w)/2,(PH-h)/2,w,h);  // 上下左右を均等に中央配置
       _pdfName=(document.title||'清掃報告書')+'.pdf';
       _pdfBlob=pdf.output('blob');
       document.getElementById('btnSave').style.display='block';
