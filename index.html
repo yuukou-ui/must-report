@@ -397,7 +397,7 @@
   function layoutPhotos(){
     const box=document.getElementById('pv_photos');
     if(!box || !photos.length) return;
-    const rg=12, cg=192;                                  // 写真間の縦・横の隙間(px)。横は広めにして2列を離す
+    const rg=12, cg=96;                                   // 写真間の縦・横の隙間(px)。横は広めにして2列を離す
     const rows=Math.max(1, Math.ceil(photos.length/2));
     const availH=box.clientHeight, innerW=box.clientWidth;
     if(availH<=0 || innerW<=0) return;
