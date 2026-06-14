@@ -132,6 +132,7 @@
   .actions button{ flex:1; padding:15px; font-size:15px; font-weight:800; border:none; border-radius:12px; cursor:pointer; color:#fff; }
   .btn-pdf{ background:linear-gradient(135deg,var(--orange) 0%,var(--orange2) 100%); }
   .btn-back{ background:var(--navy); }
+  .btn-save{ background:linear-gradient(135deg,#1fa85e 0%,#137a43 100%); flex-basis:100%; }
   .print-hint{ flex-basis:100%; margin:2px 0 0; font-size:12px; color:var(--muted); text-align:center; line-height:1.5; }
 
   /* 文字が縮みすぎた時だけ出る警告 */
@@ -253,11 +254,14 @@
 <div class="actions" id="actions" style="display:none;">
   <button class="btn-back" onclick="switchView('input')">← 入力にもどる</button>
   <button class="btn-pdf" id="btnPdf" onclick="makePDF()">📄 PDFを作成</button>
-  <p class="print-hint">ボタンを押すとA4・1枚のPDFができます。表示されたら共有ボタンから「ファイルに保存」やLINE送信ができます。</p>
+  <button class="btn-save" id="btnSave" onclick="sharePDF()" style="display:none;">📥 保存 / LINEで送る</button>
+  <p class="print-hint" id="pdfReady" style="display:none;">✅ PDFができました。「📥 保存 / LINEで送る」を押すと、ファイルに保存やグループLINEへの送信ができます。</p>
+  <p class="print-hint">「📄 PDFを作成」を押すと、A4・1枚のPDFを作ります（数秒かかります）。</p>
 </div>
 
 <script>
   const MAX_PHOTOS = 8;
+  let _pdfBlob=null, _pdfName='';   // 作成したPDFを保持し、共有ボタンの押下時に使う
   let works = [
     {name:"掃き掃除", checked:false},
     {name:"拭き・モップがけ", checked:false},
@@ -389,6 +393,8 @@
   async function makePDF(){
     const btn=document.getElementById('btnPdf');
     const old=btn.textContent; btn.disabled=true; btn.textContent='PDFを作成中…';
+    document.getElementById('btnSave').style.display='none';
+    document.getElementById('pdfReady').style.display='none';
     try{
       const sheet=document.getElementById('sheet');
       const prevT=sheet.style.transform;
@@ -402,9 +408,28 @@
       let w=PW, h=PW*canvas.height/canvas.width;     // 用紙幅に合わせ、はみ出す高さは縮小フィット
       if(h>PH){ h=PH; w=PH*canvas.width/canvas.height; }
       pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',(PW-w)/2,0,w,h);
-      pdf.save((document.title||'清掃報告書')+'.pdf');
+      _pdfName=(document.title||'清掃報告書')+'.pdf';
+      _pdfBlob=pdf.output('blob');
+      document.getElementById('btnSave').style.display='block';
+      document.getElementById('pdfReady').style.display='block';
     }catch(e){ alert('PDF作成に失敗しました：'+(e&&e.message||e)); }
     btn.disabled=false; btn.textContent=old;
+  }
+
+  /* 作成済みPDFを共有（iOSの共有シート＝ファイルに保存・LINE送信が出る）。
+     非対応端末ではダウンロードにフォールバック。保存はこのボタン押下が起点なので確実に動く。 */
+  async function sharePDF(){
+    if(!_pdfBlob) return;
+    const file=new File([_pdfBlob], _pdfName, {type:'application/pdf'});
+    try{
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({ files:[file], title:_pdfName });
+      }else{
+        const url=URL.createObjectURL(_pdfBlob);
+        const a=document.createElement('a'); a.href=url; a.download=_pdfName; a.click();
+        setTimeout(()=>URL.revokeObjectURL(url),10000);
+      }
+    }catch(e){ /* ユーザーが共有をキャンセルした場合などは何もしない */ }
   }
   window.addEventListener('resize', scaleSheet);
 
