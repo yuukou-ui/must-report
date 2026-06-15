@@ -1,6 +1,6 @@
 {
-  "name": "清掃報告書｜マスト管理",
-  "short_name": "清掃報告書",
+  "name": "取引先別_清掃報告書｜マスト管理",
+  "short_name": "取引先別_清掃報告書",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
