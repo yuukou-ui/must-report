@@ -263,7 +263,7 @@
   <button class="btn-pdf" id="btnPdf" onclick="makePDF()">📄 PDFを作成</button>
   <button class="btn-save" id="btnSave" onclick="sharePDF()" style="display:none;">📥 保存 / LINEで送る</button>
   <p class="print-hint" id="pdfReady" style="display:none;">✅ PDFができました。「📥 保存 / LINEで送る」を押すと、ファイルに保存やグループLINEへの送信ができます。</p>
-  <p class="print-hint">「📄 PDFを作成」を押すと、A4・1枚のPDFを作ります（数秒かかります）。</p>
+  <p class="print-hint" id="pdfHint">「📄 PDFを作成」を押すと、A4・1枚のPDFを作ります（数秒かかります）。</p>
 </div>
 
 <script>
@@ -357,7 +357,16 @@
     document.getElementById('actions').style.display=input?'none':'flex';
     document.getElementById('tabInput').classList.toggle('active',input);
     document.getElementById('tabPreview').classList.toggle('active',!input);
-    if(!input){ render(); scaleSheet(); } window.scrollTo(0,0);
+    if(!input){
+      // プレビューに来るたびPDF状態を初期化（内容変更後の古いPDFを無効化し、作成ボタンに戻す）
+      _pdfBlob=null;
+      document.getElementById('btnPdf').style.display='';
+      document.getElementById('btnSave').style.display='none';
+      document.getElementById('pdfReady').style.display='none';
+      document.getElementById('pdfHint').style.display='';
+      render(); scaleSheet();
+    }
+    window.scrollTo(0,0);
   }
 
   /* A4(794px)をスマホ画面幅に縮小フィット */
@@ -431,6 +440,9 @@
       pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',(PW-w)/2,(PH-h)/2,w,h);  // 上下左右を均等に中央配置
       _pdfName=(document.title||'清掃報告書')+'.pdf';
       _pdfBlob=pdf.output('blob');
+      // PDFができたら「作成」ボタンは隠し、「保存/LINEで送る」だけにする（作成ボタンの二重表示を解消）
+      btn.style.display='none';
+      document.getElementById('pdfHint').style.display='none';
       document.getElementById('btnSave').style.display='block';
       document.getElementById('pdfReady').style.display='block';
     }catch(e){ alert('PDF作成に失敗しました：'+(e&&e.message||e)); }
