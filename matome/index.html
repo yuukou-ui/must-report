@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>報告書まとめツール｜マスト管理 有限会社</title>
+<link rel="apple-touch-icon" href="../icon-180.png">
+<link rel="icon" type="image/svg+xml" href="../icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14315e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="まとめ">
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <style>
   :root{
@@ -30,11 +38,20 @@
   .drop .big{ font-size:26px; }
   .drop small{ font-weight:400; color:var(--muted); }
 
-  .plist{ list-style:none; margin:12px 0 0; padding:0; }
+  .sortbar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .sortbar .lbl{ font-size:12.5px; font-weight:700; color:var(--muted); }
+  .sortbar button{ padding:7px 13px; font-size:13px; font-weight:700; border:1.5px solid var(--line);
+    border-radius:999px; background:#fff; color:var(--navy); cursor:pointer; }
+  .sortbar button.active{ background:var(--navy); color:#fff; border-color:var(--navy); }
+
+  .plist{ list-style:none; margin:10px 0 0; padding:0; }
   .plist li{ display:flex; align-items:center; gap:8px; padding:9px 10px; border:1px solid var(--line);
     border-radius:10px; margin-bottom:7px; background:#fafbfd; font-size:13.5px; }
   .plist .no{ flex:none; width:24px; height:24px; border-radius:50%; background:var(--navy); color:#fff;
     font-size:12px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; }
+  .plist .dt{ flex:none; min-width:46px; text-align:center; padding:3px 7px; border-radius:7px;
+    background:#eef2f8; color:var(--navy2); font-size:12px; font-weight:800; }
+  .plist .dt.none{ background:#fdeee2; color:var(--orange2); }
   .plist .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
   .plist button{ flex:none; width:30px; height:30px; border:1px solid var(--line); border-radius:8px;
     background:#fff; color:var(--navy); font-size:14px; cursor:pointer; }
@@ -76,9 +93,14 @@
       <small>ファイル名の順（＝日付順）に自動で並びます</small>
       <input type="file" id="pdfInput" accept="application/pdf,.pdf" multiple>
     </label>
+    <div class="sortbar" id="sortbar" style="display:none">
+      <span class="lbl">並び替え：</span>
+      <button id="sortDate" onclick="sortBy('date')">📅 清掃日順</button>
+      <button id="sortName" onclick="sortBy('prop')">🏢 物件名順</button>
+    </div>
     <ul class="plist" id="plist"></ul>
     <p class="empty-note" id="emptyNote">まだPDFが選ばれていません。</p>
-    <p class="hint">並び順は ↑↓ ボタンで変更できます。この順番どおりに結合されます。</p>
+    <p class="hint">取り込むと自動で清掃日順に並びます。ボタンで並び替え、↑↓で手動調整もできます。この順番どおりに結合されます。</p>
   </div>
 
   <div class="card">
@@ -98,7 +120,34 @@
 </div>
 
 <script>
-  let items = [];   // {name, bytes}
+  let items = [];        // {name, bytes, date, prop}
+  let curSort = 'date';  // 'date' | 'prop' | null(手動)
+
+  // ファイル名「清掃報告書_物件名_YYYYMMDD.pdf」から清掃日と物件名を取り出す
+  function fromName(name){
+    const base = name.replace(/\.pdf$/i,'');
+    const dm = base.match(/(\d{8})(?!.*\d{8})/);   // 末尾側の8桁を清掃日とみなす
+    const date = dm ? dm[1] : '';
+    let prop = base;
+    const parts = base.split('_');
+    if(parts.length>=3 && /^\d{8}$/.test(parts[parts.length-1])){
+      prop = parts.slice(1,-1).join('_');          // 接頭辞と日付を除いた中央＝物件名
+    }
+    return { date, prop };
+  }
+  // 清掃日と物件名を取得。①PDF内部の埋め込み情報（LINEでファイル名が変わっても残る）→②ファイル名 の順
+  async function readMeta(bytes, name){
+    try{
+      const doc = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption:true });
+      const sub = (doc.getSubject()||'').match(/(\d{8})/);
+      if(sub){
+        const kw = (doc.getKeywords()||'').trim();
+        return { date: sub[1], prop: kw || fromName(name).prop };
+      }
+    }catch(e){ /* 読めなければファイル名にフォールバック */ }
+    return fromName(name);
+  }
+  function fmtDate(d){ return d ? `${+d.slice(4,6)}/${+d.slice(6,8)}` : '日付不明'; }
 
   const drop = document.getElementById('drop');
   document.getElementById('pdfInput').addEventListener('change', e=>{ addFiles(e.target.files); e.target.value=''; });
@@ -111,24 +160,41 @@
     if(!files.length){ setStatus('ng','PDFファイルを選んでください。'); return; }
     for(const f of files){
       if(items.some(it=>it.name===f.name)) continue;   // 同名は二重登録しない
-      items.push({ name:f.name, bytes:await f.arrayBuffer() });
+      const bytes = await f.arrayBuffer();
+      items.push({ name:f.name, bytes, ...(await readMeta(bytes, f.name)) });
     }
-    items.sort((a,b)=>a.name.localeCompare(b.name,'ja'));   // 報告書名は「…_物件_日付」なので名前順≒日付順
+    applySort();                                       // 取込時は清掃日順（既定）で自動整列
     renderList(); setStatus('','');
+  }
+
+  function sortBy(mode){ curSort = mode; applySort(); renderList(); }
+  function applySort(){
+    if(curSort==='date'){
+      // 清掃日が古い順。日付不明は末尾、同日はファイル名で安定化
+      items.sort((a,b)=> (a.date||'99999999').localeCompare(b.date||'99999999') || a.name.localeCompare(b.name,'ja'));
+    }else if(curSort==='prop'){
+      // 物件名順 → 同物件内は清掃日順
+      items.sort((a,b)=> a.prop.localeCompare(b.prop,'ja') || (a.date||'99999999').localeCompare(b.date||'99999999'));
+    }
   }
 
   function renderList(){
     const ul=document.getElementById('plist');
     ul.innerHTML = items.map((it,i)=>`<li>
-      <span class="no">${i+1}</span><span class="nm">${esc(it.name)}</span>
+      <span class="no">${i+1}</span>
+      <span class="dt${it.date?'':' none'}">${fmtDate(it.date)}</span>
+      <span class="nm">${esc(it.prop||it.name)}</span>
       <button onclick="move(${i},-1)" ${i===0?'disabled':''}>↑</button>
       <button onclick="move(${i},1)" ${i===items.length-1?'disabled':''}>↓</button>
       <button class="rm" onclick="remove(${i})">×</button>
     </li>`).join('');
     document.getElementById('emptyNote').style.display = items.length ? 'none' : 'block';
+    document.getElementById('sortbar').style.display = items.length ? 'flex' : 'none';
+    document.getElementById('sortDate').classList.toggle('active', curSort==='date');
+    document.getElementById('sortName').classList.toggle('active', curSort==='prop');
     document.getElementById('btnMerge').disabled = items.length < 1;
   }
-  function move(i,d){ const j=i+d; if(j<0||j>=items.length)return; [items[i],items[j]]=[items[j],items[i]]; renderList(); }
+  function move(i,d){ const j=i+d; if(j<0||j>=items.length)return; curSort=null; [items[i],items[j]]=[items[j],items[i]]; renderList(); }
   function remove(i){ items.splice(i,1); renderList(); }
 
   async function merge(){

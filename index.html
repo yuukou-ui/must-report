@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="format-detection" content="telephone=no">
 <title>清掃報告書｜マスト管理 有限会社</title>
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14315e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="清掃報告書">
 <style>
   :root{
     --navy:#14315e; --navy2:#1f4a8a; --orange:#ff7a18; --orange2:#e85d00;
@@ -433,6 +441,12 @@
       sheet.style.transform=prevT; scaleSheet();
       const { jsPDF }=window.jspdf;
       const pdf=new jsPDF('p','mm','a4');
+      // まとめツールでの並び替え用に、清掃日と物件名をPDF内部に埋め込む（不可視・LINEでファイル名が変わっても残る）
+      pdf.setProperties({
+        title: document.title,
+        subject: (val('f_date')||'').replace(/-/g,''),   // 清掃日 YYYYMMDD
+        keywords: val('f_place').trim()                  // 物件名
+      });
       const PW=210, PH=297, M=7;                     // A4サイズと、上下左右に確保する余白(mm)
       const AW=PW-2*M, AH=PH-2*M;                     // 余白を除いた配置可能エリア
       let w=AW, h=AW*canvas.height/canvas.width;      // まず幅基準。はみ出す高さは縮小フィット
