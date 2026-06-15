@@ -34,6 +34,9 @@
   input[type=text], input[type=date], textarea{ width:100%; padding:13px 12px; font-size:16px;
     border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font-family:inherit; }
   input:focus, textarea:focus{ outline:none; border-color:var(--orange); }
+  /* iOS Safari の date入力が右にはみ出す癖を抑える */
+  input[type=date]{ -webkit-appearance:none; appearance:none; min-width:0; max-width:100%;
+    text-align:left; display:block; }
   textarea{ min-height:90px; resize:vertical; }
 
   .checks{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
