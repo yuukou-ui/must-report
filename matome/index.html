@@ -52,7 +52,11 @@
   .plist .dt{ flex:none; min-width:46px; text-align:center; padding:3px 7px; border-radius:7px;
     background:#eef2f8; color:var(--navy2); font-size:12px; font-weight:800; }
   .plist .dt.none{ background:#fdeee2; color:var(--orange2); }
-  .plist .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
+  .plist .nm-wrap{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .plist .nm{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
+  .plist .cl{ font-size:11px; font-weight:700; color:var(--navy2); margin-top:1px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .plist .cl.none{ color:#a0a6b0; }
   .plist button{ flex:none; width:30px; height:30px; border:1px solid var(--line); border-radius:8px;
     background:#fff; color:var(--navy); font-size:14px; cursor:pointer; }
   .plist button:disabled{ opacity:.3; cursor:default; }
@@ -65,6 +69,7 @@
   input[type=text]{ width:100%; padding:13px 12px; font-size:16px;
     border:1.5px solid var(--line); border-radius:10px; color:var(--ink); font-family:inherit; }
   input[type=text]:focus{ outline:none; border-color:var(--orange); }
+  .auto-tag{ font-weight:400; color:var(--navy2); }
 
   .btn-merge{ width:100%; padding:16px; font-size:16px; font-weight:800; border:none; border-radius:12px;
     cursor:pointer; color:#fff; background:linear-gradient(135deg,var(--orange) 0%,var(--orange2) 100%); }
@@ -74,13 +79,51 @@
   .status.ok{ display:block; background:#e9f7ec; color:#1b7a36; border:1px solid #bfe5c8; }
   .status.ng{ display:block; background:#fdeee2; color:#b3500a; border:1px solid #f7c9a3; }
   .hint{ font-size:12px; color:var(--muted); margin:10px 2px 0; }
+
+  /* 取引先の混在警告 */
+  .mix-warn{ margin-bottom:12px; padding:12px 14px; border-radius:10px; background:#fdeee2; border:1px solid #f7c9a3; }
+  .mix-warn p{ margin:0 0 10px; font-size:13px; font-weight:700; color:#b3500a; }
+  .mix-force{ width:100%; padding:11px; border:none; border-radius:10px; background:#b3500a; color:#fff; font-weight:700; cursor:pointer; }
+
+  /* 登録一覧（取引先・物件マスタ） */
+  .mg-client{ border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; background:#fafbfd; }
+  .mg-cname{ display:flex; align-items:center; gap:8px; font-weight:800; color:var(--navy); font-size:13.5px; cursor:pointer; user-select:none; }
+  .mg-caret{ flex:none; font-size:10px; color:var(--muted); width:12px; }
+  .mg-ctitle{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mg-cnt{ flex:none; font-size:11px; font-weight:800; color:#fff; background:var(--navy2); border-radius:999px; padding:1px 9px; }
+  .mg-rows{ margin-top:6px; }
+  .mg-row{ display:flex; align-items:center; gap:8px; padding:4px 0; }
+  .mg-pname{ flex:1; font-size:13px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mg-row button{ flex:none; width:30px; height:30px; border:1px solid var(--line); border-radius:8px; background:#fff; cursor:pointer; }
+  .mg-row button.rm{ color:var(--orange2); }
+
+  /* 大量登録に備えた整理：件数表示・検索・スクロール上限 */
+  .list-count{ font-size:12px; font-weight:700; color:var(--muted); margin:10px 2px 0; }
+  .scroll-box{ max-height:340px; overflow:auto; margin-top:6px; -webkit-overflow-scrolling:touch; }
+  .search-box{ margin-bottom:10px; }
+  .search-box input{ background:#fafbfd; }
+
+  /* 新規物件の取引先を聞くモーダル */
+  .modal-bg{ position:fixed; inset:0; background:rgba(20,30,50,.55); display:none; align-items:center; justify-content:center; padding:18px; z-index:50; }
+  .modal{ background:#fff; border-radius:16px; padding:18px; max-width:420px; width:100%; max-height:86vh; overflow:auto; }
+  .modal h3{ margin:0 0 6px; color:var(--navy); font-size:16px; }
+  .m-prop{ font-size:17px; font-weight:800; color:var(--orange2); margin:4px 0 10px; word-break:break-all; }
+  .m-msg{ font-size:13px; color:var(--muted); margin:0 0 12px; }
+  .m-sub{ font-size:12px; font-weight:700; color:var(--muted); margin:0 0 7px; }
+  .m-clients{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .chip{ padding:9px 14px; border:1.5px solid var(--navy2); border-radius:999px; background:#fff; color:var(--navy); font-weight:700; font-size:14px; cursor:pointer; }
+  .m-none{ font-size:13px; color:var(--muted); }
+  .m-new{ display:flex; gap:8px; margin-bottom:14px; }
+  .m-new input{ flex:1; }
+  .m-new button{ flex:none; padding:0 14px; border:none; border-radius:10px; background:var(--navy); color:#fff; font-weight:700; cursor:pointer; }
+  .m-skip{ width:100%; padding:12px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--muted); font-weight:700; cursor:pointer; }
 </style>
 </head>
 <body>
 
 <div class="topbar">
   <h1>📚 清掃報告書 まとめツール</h1>
-  <p>半月分の報告書PDFを1つのファイルに結合します（マスト管理 有限会社）</p>
+  <p>半月分の報告書PDFを取引先ごとに1つのファイルへ結合します（マスト管理 有限会社）</p>
 </div>
 
 <div class="wrap">
@@ -90,7 +133,7 @@
     <label class="drop" id="drop">
       <span class="big">📄</span>
       <span>ここにPDFをドラッグ＆ドロップ<br>またはタップして選択（複数OK）</span>
-      <small>ファイル名の順（＝日付順）に自動で並びます</small>
+      <small>物件名から取引先を自動判定。新しい物件は取引先を確認します</small>
       <input type="file" id="pdfInput" accept="application/pdf,.pdf" multiple>
     </label>
     <div class="sortbar" id="sortbar" style="display:none">
@@ -98,32 +141,79 @@
       <button id="sortDate" onclick="sortBy('date')">📅 清掃日順</button>
       <button id="sortName" onclick="sortBy('prop')">🏢 物件名順</button>
     </div>
-    <ul class="plist" id="plist"></ul>
+    <p class="list-count" id="plistCount" style="display:none"></p>
+    <div class="scroll-box" id="plistBox" style="display:none">
+      <ul class="plist" id="plist"></ul>
+    </div>
     <p class="empty-note" id="emptyNote">まだPDFが選ばれていません。</p>
     <p class="hint">取り込むと自動で清掃日順に並びます。ボタンで並び替え、↑↓で手動調整もできます。この順番どおりに結合されます。</p>
   </div>
 
   <div class="card">
     <h2><span class="num">2</span>宛先と期間（ファイル名に使います）</h2>
-    <label class="fld"><span>宛先（取引企業名）</span>
-      <input type="text" id="f_company" placeholder="例：〇〇不動産"></label>
+    <label class="fld"><span>宛先（取引企業名）<span class="auto-tag" id="companyAuto"></span></span>
+      <input type="text" id="f_company" placeholder="例：〇〇不動産" oninput="this.dataset.auto='0';document.getElementById('companyAuto').textContent='';"></label>
     <label class="fld"><span>期間</span>
       <input type="text" id="f_period" placeholder="例：2026年6月前半"></label>
   </div>
 
   <div class="card">
     <h2><span class="num">3</span>1つのPDFに結合</h2>
+    <div class="mix-warn" id="mixWarn" style="display:none">
+      <p id="mixMsg"></p>
+      <button class="mix-force" id="mixForce" onclick="forceMerge()">⚠️ それでも結合する</button>
+    </div>
     <button class="btn-merge" id="btnMerge" onclick="merge()" disabled>📚 結合してダウンロード</button>
     <div class="status" id="status"></div>
   </div>
 
+  <div class="card">
+    <h2><span class="num">★</span>取引先・物件の登録</h2>
+    <p class="empty-note" id="mgmtEmpty">まだ登録がありません。PDFを取り込むと、新しい物件の取引先をここに記録します。</p>
+    <p class="list-count" id="mgmtCount" style="display:none"></p>
+    <div class="search-box" id="mgmtSearchWrap" style="display:none">
+      <input type="text" id="mgmtSearchBox" placeholder="🔎 物件名・取引先で検索" oninput="mgmtQuery=this.value; renderMgmt();">
+    </div>
+    <div class="scroll-box" id="mgmtScroll"><div id="mgmtList"></div></div>
+    <p class="hint">取引先名をタップで開閉。✎＝取引先の付け替え、×＝登録の削除。誤って登録した物件はここで直せます。</p>
+  </div>
+
+
+</div>
+
+<!-- 新規物件の取引先を確認するモーダル -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="mTitle">新しい物件です</h3>
+    <p class="m-prop" id="mProp"></p>
+    <p class="m-msg" id="mMsg">この物件を取り込みますか？取り込む場合は取引先を選んでください。</p>
+    <p class="m-sub" id="mSubExisting">登録済みの取引先から選ぶ</p>
+    <div class="m-clients" id="mClients"></div>
+    <p class="m-sub">新しい取引先を登録する</p>
+    <div class="m-new">
+      <input type="text" id="mNewClient" placeholder="取引先名を入力（例：〇〇不動産）">
+      <button onclick="resolvePick('__new__')">登録</button>
+    </div>
+    <button class="m-skip" id="mSkip" onclick="resolvePick(null)">取り込まない（除外）</button>
+  </div>
 </div>
 
 <script>
-  let items = [];        // {name, bytes, date, prop}
-  let curSort = 'date';  // 'date' | 'prop' | null(手動)
+  let items = [];          // {name, bytes, date, prop, client}
+  let curSort = 'date';    // 'date' | 'prop' | null(手動)
+  let mixOverride = false;  // 取引先混在でも結合する（ユーザーが明示）
+  let mgmtQuery = '';        // 登録一覧の検索文字
+  let collapsedClients = {}; // 取引先名→true で折りたたみ
 
-  // ファイル名「清掃報告書_物件名_YYYYMMDD.pdf」から清掃日と物件名を取り出す
+  /* ===== 物件名→取引先 の対応表（端末に記憶・1回目だけ手入力すれば次回から自動） ===== */
+  const LS_KEY = 'must_property_map';
+  function loadMap(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)) || {}; }catch(e){ return {}; } }
+  function saveMap(){ localStorage.setItem(LS_KEY, JSON.stringify(propMap)); }
+  let propMap = loadMap();
+  function clientList(){ return [...new Set(Object.values(propMap))].sort((a,b)=>a.localeCompare(b,'ja')); }
+  function lookupClient(prop){ return Object.prototype.hasOwnProperty.call(propMap, prop) ? propMap[prop] : null; }
+
+  /* ===== ファイル名「清掃報告書_物件名_YYYYMMDD.pdf」から清掃日と物件名を取り出す ===== */
   function fromName(name){
     const base = name.replace(/\.pdf$/i,'');
     const dm = base.match(/(\d{8})(?!.*\d{8})/);   // 末尾側の8桁を清掃日とみなす
@@ -158,44 +248,185 @@
   async function addFiles(fileList){
     const files = [...fileList].filter(f=>/\.pdf$/i.test(f.name) || f.type==='application/pdf');
     if(!files.length){ setStatus('ng','PDFファイルを選んでください。'); return; }
+    mixOverride = false;
     for(const f of files){
       if(items.some(it=>it.name===f.name)) continue;   // 同名は二重登録しない
       const bytes = await f.arrayBuffer();
-      items.push({ name:f.name, bytes, ...(await readMeta(bytes, f.name)) });
+      const meta = await readMeta(bytes, f.name);
+      let client = lookupClient(meta.prop);            // 既知の物件なら取引先を自動割り当て
+      if(client === null){                              // 新しい物件 → 取り込むか・取引先を確認
+        const res = await resolveNewProperty(meta.prop);
+        if(res.skip) continue;                          // 「取り込まない」→ このPDFは除外
+        client = res.client;
+        if(meta.prop){ propMap[meta.prop] = client; saveMap(); }   // 物件名が取れたものだけ記憶
+      }
+      items.push({ name:f.name, bytes, ...meta, client });
     }
-    applySort();                                       // 取込時は清掃日順（既定）で自動整列
-    renderList(); setStatus('','');
+    applySort();
+    renderAll();
+    setStatus('','');
   }
 
   function sortBy(mode){ curSort = mode; applySort(); renderList(); }
   function applySort(){
     if(curSort==='date'){
-      // 清掃日が古い順。日付不明は末尾、同日はファイル名で安定化
       items.sort((a,b)=> (a.date||'99999999').localeCompare(b.date||'99999999') || a.name.localeCompare(b.name,'ja'));
     }else if(curSort==='prop'){
-      // 物件名順 → 同物件内は清掃日順
       items.sort((a,b)=> a.prop.localeCompare(b.prop,'ja') || (a.date||'99999999').localeCompare(b.date||'99999999'));
     }
   }
+
+  function renderAll(){ renderList(); renderMgmt(); }
 
   function renderList(){
     const ul=document.getElementById('plist');
     ul.innerHTML = items.map((it,i)=>`<li>
       <span class="no">${i+1}</span>
       <span class="dt${it.date?'':' none'}">${fmtDate(it.date)}</span>
-      <span class="nm">${esc(it.prop||it.name)}</span>
+      <span class="nm-wrap">
+        <span class="nm">${esc(it.prop||it.name)}</span>
+        <span class="cl${it.client?'':' none'}">🏢 ${esc(it.client||'取引先 未設定')}</span>
+      </span>
       <button onclick="move(${i},-1)" ${i===0?'disabled':''}>↑</button>
       <button onclick="move(${i},1)" ${i===items.length-1?'disabled':''}>↓</button>
       <button class="rm" onclick="remove(${i})">×</button>
     </li>`).join('');
     document.getElementById('emptyNote').style.display = items.length ? 'none' : 'block';
+    document.getElementById('plistBox').style.display = items.length ? 'block' : 'none';
+    const pc=document.getElementById('plistCount');
+    pc.style.display = items.length ? 'block' : 'none'; pc.textContent = items.length ? `${items.length}件` : '';
     document.getElementById('sortbar').style.display = items.length ? 'flex' : 'none';
     document.getElementById('sortDate').classList.toggle('active', curSort==='date');
     document.getElementById('sortName').classList.toggle('active', curSort==='prop');
-    document.getElementById('btnMerge').disabled = items.length < 1;
+    updateMergeState();
   }
   function move(i,d){ const j=i+d; if(j<0||j>=items.length)return; curSort=null; [items[i],items[j]]=[items[j],items[i]]; renderList(); }
-  function remove(i){ items.splice(i,1); renderList(); }
+  function remove(i){ items.splice(i,1); mixOverride=false; renderList(); }
+
+  /* 取引先が混ざっていないかのチェック＋宛先の自動入力＋結合ボタンの可否 */
+  function clientsInList(){ return [...new Set(items.map(it=>it.client).filter(Boolean))]; }
+  function updateMergeState(){
+    const cs = clientsInList();
+    const mixed = cs.length > 1;
+    const warn = document.getElementById('mixWarn');
+    const btn = document.getElementById('btnMerge');
+    if(mixed && !mixOverride){
+      warn.style.display='block';
+      document.getElementById('mixForce').style.display='block';
+      document.getElementById('mixMsg').textContent =
+        '⚠️ 異なる取引先が混ざっています：'+cs.join(' / ')+'。通常は取引先ごとに分けて結合してください。';
+      btn.disabled = true;
+    }else if(mixed && mixOverride){
+      warn.style.display='block';
+      document.getElementById('mixForce').style.display='none';
+      document.getElementById('mixMsg').textContent =
+        '⚠️ 異なる取引先（'+cs.join(' / ')+'）が混在したまま結合します。';
+      btn.disabled = items.length < 1;
+    }else{
+      warn.style.display='none';
+      btn.disabled = items.length < 1;
+    }
+    // 取引先が1社に揃っていれば宛先を自動入力（手入力したら上書きしない）
+    const f = document.getElementById('f_company');
+    const tag = document.getElementById('companyAuto');
+    if(cs.length===1 && (f.dataset.auto==='1' || !f.value.trim())){
+      f.value = cs[0]; f.dataset.auto='1'; tag.textContent='（自動入力）';
+    }
+  }
+
+  /* ===== 新規物件モーダル（取り込むか／取引先は？を質問） ===== */
+  let _resolver = null, _chipClients = [], _modalMode = 'new';
+  function resolveNewProperty(prop, mode='new'){
+    return new Promise(res=>{
+      _resolver = res; _modalMode = mode;
+      document.getElementById('mProp').textContent = prop || '（物件名が読み取れませんでした）';
+      document.getElementById('mTitle').textContent = mode==='edit' ? '取引先を付け替え' : '新しい物件です';
+      document.getElementById('mMsg').textContent = mode==='edit'
+        ? 'この物件の取引先を選び直してください。'
+        : 'この物件を取り込みますか？取り込む場合は取引先を選んでください。';
+      document.getElementById('mSkip').textContent = mode==='edit' ? 'キャンセル' : '取り込まない（除外）';
+      _chipClients = clientList();
+      const cont = document.getElementById('mClients');
+      cont.innerHTML = _chipClients.length
+        ? _chipClients.map((c,i)=>`<button class="chip" onclick="resolvePick('idx:${i}')">${esc(c)}</button>`).join('')
+        : '<span class="m-none">まだ登録された取引先はありません</span>';
+      document.getElementById('mSubExisting').style.display = _chipClients.length ? 'block' : 'none';
+      document.getElementById('mNewClient').value='';
+      document.getElementById('modalBg').style.display='flex';
+    });
+  }
+  function resolvePick(v){
+    if(v==='__new__'){
+      const name = document.getElementById('mNewClient').value.trim();
+      if(!name){ alert('取引先名を入力してください。'); return; }
+      closeModal(); _resolver({ client:name }); _resolver=null; return;
+    }
+    if(v===null){ closeModal(); _resolver({ skip:true }); _resolver=null; return; }
+    if(typeof v==='string' && v.startsWith('idx:')){
+      const c = _chipClients[+v.slice(4)];
+      closeModal(); _resolver({ client:c }); _resolver=null; return;
+    }
+  }
+  function closeModal(){ document.getElementById('modalBg').style.display='none'; }
+
+  /* ===== 取引先・物件の登録一覧（検索・折りたたみ・修正・削除） ===== */
+  let _mgmtEntries = [];
+  let _mgmtClientNames = [];
+  function renderMgmt(){
+    _mgmtEntries = Object.entries(propMap);
+    const total = _mgmtEntries.length;
+    const allClients = new Set(Object.values(propMap));
+    document.getElementById('mgmtEmpty').style.display = total ? 'none' : 'block';
+    const cnt = document.getElementById('mgmtCount');
+    cnt.style.display = total ? 'block' : 'none';
+    cnt.textContent = total ? `登録 ${total}物件 / ${allClients.size}取引先` : '';
+    document.getElementById('mgmtSearchWrap').style.display = total ? 'block' : 'none';
+
+    const q = mgmtQuery.trim().toLowerCase();
+    const byClient = {};
+    _mgmtEntries.forEach(([p,c],idx)=>{
+      if(q && !(p.toLowerCase().includes(q) || c.toLowerCase().includes(q))) return;  // 検索で絞り込み
+      (byClient[c]=byClient[c]||[]).push({p,idx});
+    });
+    _mgmtClientNames = Object.keys(byClient).sort((a,b)=>a.localeCompare(b,'ja'));
+    const box = document.getElementById('mgmtList');
+    if(!_mgmtClientNames.length){
+      box.innerHTML = (q && total) ? '<p class="empty-note" style="display:block">該当する物件・取引先がありません。</p>' : '';
+      return;
+    }
+    box.innerHTML = _mgmtClientNames.map((c,ci)=>{
+      const open = q ? true : !collapsedClients[c];   // 検索中は一致グループを開く
+      const rows = byClient[c].sort((a,b)=>a.p.localeCompare(b.p,'ja')).map(o=>`
+        <div class="mg-row">
+          <span class="mg-pname">${esc(o.p)}</span>
+          <button onclick="editMapping(${o.idx})" title="取引先を付け替え">✎</button>
+          <button class="rm" onclick="delMapping(${o.idx})" title="削除">×</button>
+        </div>`).join('');
+      return `<div class="mg-client">
+        <div class="mg-cname" onclick="toggleClient(${ci})">
+          <span class="mg-caret">${open?'▼':'▶'}</span>
+          <span class="mg-ctitle">🏢 ${esc(c)}</span>
+          <span class="mg-cnt">${byClient[c].length}</span>
+        </div>
+        <div class="mg-rows" style="display:${open?'block':'none'}">${rows}</div>
+      </div>`;
+    }).join('');
+  }
+  function toggleClient(ci){ const c=_mgmtClientNames[ci]; if(!c) return; collapsedClients[c]=!collapsedClients[c]; renderMgmt(); }
+  async function editMapping(idx){
+    const prop = _mgmtEntries[idx][0];
+    const res = await resolveNewProperty(prop, 'edit');
+    if(res.skip) return;                                  // キャンセル
+    propMap[prop] = res.client; saveMap();
+    items.forEach(it=>{ if(it.prop===prop) it.client=res.client; });   // 取込済みにも反映
+    renderAll();
+  }
+  function delMapping(idx){
+    const prop = _mgmtEntries[idx][0];
+    if(!confirm(`「${prop}」の登録を削除しますか？\n（次回この物件を取り込むと、また取引先を確認します）`)) return;
+    delete propMap[prop]; saveMap();
+    renderMgmt();
+  }
 
   async function merge(){
     const btn=document.getElementById('btnMerge');
@@ -218,12 +449,15 @@
     }catch(err){
       setStatus('ng','結合に失敗しました：'+err.message);
     }
-    btn.disabled = items.length < 1;
+    updateMergeState();
   }
+  function forceMerge(){ mixOverride=true; updateMergeState(); merge(); }
 
   function setStatus(type,msg){ const s=document.getElementById('status');
     s.className='status'+(type?' '+type:''); s.textContent=msg; }
-  function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+  renderMgmt();   // 起動時に登録一覧を表示
 </script>
 </body>
 </html>
