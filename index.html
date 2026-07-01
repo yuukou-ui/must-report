@@ -148,6 +148,7 @@
   .btn-pdf{ background:linear-gradient(135deg,var(--orange) 0%,var(--orange2) 100%); }
   .btn-back{ background:var(--navy); }
   .btn-save{ background:linear-gradient(135deg,#1fa85e 0%,#137a43 100%); flex-basis:100%; }
+  .btn-next{ background:linear-gradient(135deg,#5b6cff 0%,#3a45d6 100%); flex-basis:100%; }
   .print-hint{ flex-basis:100%; margin:2px 0 0; font-size:12px; color:var(--muted); text-align:center; line-height:1.5; }
 
   /* 文字が縮みすぎた時だけ出る警告 */
@@ -270,6 +271,7 @@
   <button class="btn-back" onclick="switchView('input')">← 入力にもどる</button>
   <button class="btn-pdf" id="btnPdf" onclick="makePDF()">📄 PDFを作成</button>
   <button class="btn-save" id="btnSave" onclick="sharePDF()" style="display:none;">📥 保存 / LINEで送る</button>
+  <button class="btn-next" id="btnNext" onclick="newReport()" style="display:none;">🆕 次の報告書へ</button>
   <p class="print-hint" id="pdfReady" style="display:none;">✅ PDFができました。「📥 保存 / LINEで送る」を押すと、ファイルに保存やグループLINEへの送信ができます。</p>
   <p class="print-hint" id="pdfHint">「📄 PDFを作成」を押すと、A4・1枚のPDFを作ります（数秒かかります）。</p>
 </div>
@@ -370,6 +372,7 @@
       _pdfBlob=null;
       document.getElementById('btnPdf').style.display='';
       document.getElementById('btnSave').style.display='none';
+      document.getElementById('btnNext').style.display='none';
       document.getElementById('pdfReady').style.display='none';
       document.getElementById('pdfHint').style.display='';
       render(); scaleSheet();
@@ -452,7 +455,9 @@
       let w=AW, h=AW*canvas.height/canvas.width;      // まず幅基準。はみ出す高さは縮小フィット
       if(h>AH){ h=AH; w=AH*canvas.width/canvas.height; }
       pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',(PW-w)/2,(PH-h)/2,w,h);  // 上下左右を均等に中央配置
-      _pdfName=(document.title||'清掃報告書')+'.pdf';
+      // ファイル名は「物件名_年月日」だけにする（両方空のときだけ「清掃報告書」にフォールバック）
+      const _pn=[val('f_place').trim(), (val('f_date')||'').replace(/-/g,'')].filter(Boolean).join('_');
+      _pdfName=(_pn||'清掃報告書')+'.pdf';
       _pdfBlob=pdf.output('blob');
       // PDFができたら「作成」ボタンは隠し、「保存/LINEで送る」だけにする（作成ボタンの二重表示を解消）
       btn.style.display='none';
@@ -476,7 +481,24 @@
         const a=document.createElement('a'); a.href=url; a.download=_pdfName; a.click();
         setTimeout(()=>URL.revokeObjectURL(url),10000);
       }
+      // 保存/送信まで済んだら「次の報告書へ」を出す。この時点でPDFは保存済みなので、押せば確認なしで即クリアできる
+      document.getElementById('btnNext').style.display='block';
     }catch(e){ /* ユーザーが共有をキャンセルした場合などは何もしない */ }
+  }
+
+  /* 次の報告書へ：清掃日・清掃者はそのまま引き継ぎ、清掃場所・特記事項・写真・作業内容のチェックを
+     クリアして入力画面に戻る。保存後に出るボタンなのでPDFは保存済み＝確認ダイアログなしで即クリア。 */
+  function newReport(){
+    document.getElementById('f_place').value='';
+    document.getElementById('f_notes').value='';
+    photos=[];
+    works.forEach(w=>w.checked=false);   // 作業内容は項目リストは残し、チェックだけ外す
+    renderChecks();
+    renderThumbs();
+    _pdfBlob=null;
+    render();
+    switchView('input');
+    document.getElementById('f_place').focus();   // すぐ次の物件名を打てるようカーソルを合わせる
   }
   window.addEventListener('resize', scaleSheet);
 
