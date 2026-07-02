@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="報告書PDF結合">
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js"></script>
 <style>
   :root{
     --navy:#14315e; --navy2:#1f4a8a; --orange:#ff7a18; --orange2:#e85d00;
@@ -43,6 +44,15 @@
   .sortbar button{ padding:7px 13px; font-size:13px; font-weight:700; border:1.5px solid var(--line);
     border-radius:999px; background:#fff; color:var(--navy); cursor:pointer; }
   .sortbar button.active{ background:var(--navy); color:#fff; border-color:var(--navy); }
+
+  /* 画質（メール送付用の軽量化）セレクター */
+  .qbar{ margin-bottom:8px; }
+  .qbar .qlbl{ display:block; font-size:12.5px; font-weight:700; color:var(--muted); margin-bottom:7px; }
+  .qbar .qbtns{ display:flex; gap:8px; flex-wrap:wrap; }
+  .qbar .qbtns button{ flex:1; min-width:100px; padding:11px 8px; font-size:13px; font-weight:700;
+    border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--navy); cursor:pointer; }
+  .qbar .qbtns button.active{ background:var(--navy); color:#fff; border-color:var(--navy); }
+  .qhint{ font-size:12px; color:var(--muted); margin:0 2px 14px; line-height:1.5; }
 
   .plist{ list-style:none; margin:10px 0 0; padding:0; }
   .plist li{ display:flex; align-items:center; gap:8px; padding:9px 10px; border:1px solid var(--line);
@@ -117,6 +127,22 @@
   .m-new input{ flex:1; }
   .m-new button{ flex:none; padding:0 14px; border:none; border-radius:10px; background:var(--navy); color:#fff; font-weight:700; cursor:pointer; }
   .m-skip{ width:100%; padding:12px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--muted); font-weight:700; cursor:pointer; }
+  .chip.sel{ background:var(--navy); color:#fff; border-color:var(--navy); }
+  .m-freq{ display:flex; gap:8px; margin-bottom:14px; }
+  .m-freq button{ flex:1; padding:11px; border:1.5px solid var(--navy2); border-radius:10px; background:#fff; color:var(--navy); font-weight:700; font-size:14px; cursor:pointer; }
+  .m-freq button.sel{ background:var(--navy); color:#fff; border-color:var(--navy); }
+  .m-sel{ font-size:13px; font-weight:700; color:var(--navy); background:#eef2f8; border-radius:8px; padding:8px 10px; margin:0 0 12px; }
+  .m-confirm{ width:100%; padding:13px; border:none; border-radius:10px; background:linear-gradient(135deg,var(--orange),var(--orange2)); color:#fff; font-weight:800; font-size:15px; cursor:pointer; margin-bottom:8px; }
+  .m-confirm:disabled{ opacity:.45; cursor:default; }
+
+  /* 報告書が見当たらない物件の警告（出し忘れ防止） */
+  .miss-warn{ margin-bottom:12px; padding:12px 14px; border-radius:10px; background:#fff8e6; border:1px solid #f0d488; }
+  .miss-warn .mw-strong{ margin:0 0 8px; font-size:13px; font-weight:800; color:#8a6400; }
+  .miss-warn .mw-note{ margin:0; font-size:12px; font-weight:700; color:#a07b1e; }
+  .monthend{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--navy); margin-bottom:12px; cursor:pointer; user-select:none; }
+  .monthend input{ width:18px; height:18px; flex:none; }
+  .mg-fbadge{ flex:none; font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px; background:#eef2f8; color:var(--navy2); }
+  .mg-fbadge.q{ background:#fdeee2; color:var(--orange2); }
 </style>
 </head>
 <body>
@@ -146,6 +172,11 @@
       <ul class="plist" id="plist"></ul>
     </div>
     <p class="empty-note" id="emptyNote">まだPDFが選ばれていません。</p>
+    <label class="monthend" id="monthEndWrap" style="display:none">
+      <input type="checkbox" id="monthEndChk" onchange="toggleMonthEnd(this)">
+      月末チェック（月1回の物件も「出し忘れ」確認に含める）
+    </label>
+    <div class="miss-warn" id="missWarn" style="display:none"></div>
     <p class="hint">取り込むと自動で清掃日順に並びます。ボタンで並び替え、↑↓で手動調整もできます。この順番どおりに結合されます。</p>
   </div>
 
@@ -159,6 +190,16 @@
 
   <div class="card">
     <h2><span class="num">3</span>1つのPDFに結合</h2>
+    <div class="qbar" id="qbar">
+      <span class="qlbl">画質（メール送付用の軽量化）</span>
+      <div class="qbtns">
+        <button data-q="hi" onclick="setQ('hi')">高画質・無劣化</button>
+        <button data-q="std" class="active" onclick="setQ('std')">標準 200DPI（推奨）</button>
+        <button data-q="mid" onclick="setQ('mid')">170DPI</button>
+        <button data-q="lite" onclick="setQ('lite')">軽量 130DPI</button>
+      </div>
+    </div>
+    <p class="qhint" id="qHint"></p>
     <div class="mix-warn" id="mixWarn" style="display:none">
       <p id="mixMsg"></p>
       <button class="mix-force" id="mixForce" onclick="forceMerge()">⚠️ それでも結合する</button>
@@ -181,19 +222,26 @@
 
 </div>
 
-<!-- 新規物件の取引先を確認するモーダル -->
+<!-- 新規物件の取引先・頻度を確認するモーダル -->
 <div class="modal-bg" id="modalBg">
   <div class="modal">
     <h3 id="mTitle">新しい物件です</h3>
     <p class="m-prop" id="mProp"></p>
-    <p class="m-msg" id="mMsg">この物件を取り込みますか？取り込む場合は取引先を選んでください。</p>
+    <p class="m-msg" id="mMsg">この物件を取り込みますか？取引先と清掃頻度を選んでください。</p>
+    <p class="m-sel" id="mSelClient" style="display:none"></p>
     <p class="m-sub" id="mSubExisting">登録済みの取引先から選ぶ</p>
     <div class="m-clients" id="mClients"></div>
     <p class="m-sub">新しい取引先を登録する</p>
     <div class="m-new">
       <input type="text" id="mNewClient" placeholder="取引先名を入力（例：〇〇不動産）">
-      <button onclick="resolvePick('__new__')">登録</button>
+      <button onclick="setNewClient()">選択</button>
     </div>
+    <p class="m-sub">清掃の頻度</p>
+    <div class="m-freq" id="mFreq">
+      <button data-f="2" onclick="setFreq('2')">月2回</button>
+      <button data-f="1" onclick="setFreq('1')">月1回</button>
+    </div>
+    <button class="m-confirm" id="mConfirm" onclick="confirmModal()" disabled>取り込む</button>
     <button class="m-skip" id="mSkip" onclick="resolvePick(null)">取り込まない（除外）</button>
   </div>
 </div>
@@ -204,14 +252,28 @@
   let mixOverride = false;  // 取引先混在でも結合する（ユーザーが明示）
   let mgmtQuery = '';        // 登録一覧の検索文字
   let collapsedClients = {}; // 取引先名→true で折りたたみ
+  let quality = 'std';       // 'hi'=無劣化そのまま / 'std'=標準圧縮 / 'lite'=軽量圧縮
+  // 圧縮時は pdf.js で各ページを目標DPIに描き直す（ワーカーを指定）
+  if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.worker.min.js';
+  const QCFG = { std:{ dpi:200, jpeg:0.85 }, mid:{ dpi:170, jpeg:0.85 }, lite:{ dpi:130, jpeg:0.78 } };   // 高画質(hi)は再圧縮なし
 
   /* ===== 物件名→取引先 の対応表（端末に記憶・1回目だけ手入力すれば次回から自動） ===== */
   const LS_KEY = 'must_property_map';
+  let persistFailed = false;   // プライベートモード/容量超過などで保存できなかった
+  function persist(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); return true; }catch(e){ persistFailed = true; return false; } }
   function loadMap(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)) || {}; }catch(e){ return {}; } }
-  function saveMap(){ localStorage.setItem(LS_KEY, JSON.stringify(propMap)); }
+  function saveMap(){ persist(LS_KEY, propMap); }
   let propMap = loadMap();
   function clientList(){ return [...new Set(Object.values(propMap))].sort((a,b)=>a.localeCompare(b,'ja')); }
   function lookupClient(prop){ return Object.prototype.hasOwnProperty.call(propMap, prop) ? propMap[prop] : null; }
+
+  /* ===== 物件ごとの清掃頻度（'2'=月2回 / '1'=月1回）。未登録の既存物件は安全側で月2回扱い ===== */
+  const LS_FREQ = 'must_property_freq';
+  function loadFreq(){ try{ return JSON.parse(localStorage.getItem(LS_FREQ)) || {}; }catch(e){ return {}; } }
+  function saveFreq(){ persist(LS_FREQ, freqMap); }
+  let freqMap = loadFreq();
+  function lookupFreq(prop){ return freqMap[prop]==='1' ? '1' : '2'; }
+  let monthEndCheck = false;
 
   /* ===== ファイル名「清掃報告書_物件名_YYYYMMDD.pdf」から清掃日と物件名を取り出す ===== */
   function fromName(name){
@@ -258,13 +320,17 @@
         const res = await resolveNewProperty(meta.prop);
         if(res.skip) continue;                          // 「取り込まない」→ このPDFは除外
         client = res.client;
-        if(meta.prop){ propMap[meta.prop] = client; saveMap(); }   // 物件名が取れたものだけ記憶
+        if(meta.prop){ propMap[meta.prop] = client; freqMap[meta.prop] = res.freq; saveMap(); saveFreq(); }   // 物件名が取れたものだけ記憶
       }
       items.push({ name:f.name, bytes, ...meta, client });
     }
     applySort();
     renderAll();
-    setStatus('','');
+    if(persistFailed){
+      setStatus('ng','⚠️ この端末（プライベートブラウズ等）では取引先・頻度を保存できません。結合はできますが、次回は再入力が必要になる場合があります。');
+    }else{
+      setStatus('','');
+    }
   }
 
   function sortBy(mode){ curSort = mode; applySort(); renderList(); }
@@ -299,6 +365,8 @@
     document.getElementById('sortDate').classList.toggle('active', curSort==='date');
     document.getElementById('sortName').classList.toggle('active', curSort==='prop');
     updateMergeState();
+    renderMissing();
+    updateQHint();
   }
   function move(i,d){ const j=i+d; if(j<0||j>=items.length)return; curSort=null; [items[i],items[j]]=[items[j],items[i]]; renderList(); }
   function remove(i){ items.splice(i,1); mixOverride=false; renderList(); }
@@ -334,38 +402,94 @@
     }
   }
 
-  /* ===== 新規物件モーダル（取り込むか／取引先は？を質問） ===== */
-  let _resolver = null, _chipClients = [], _modalMode = 'new';
-  function resolveNewProperty(prop, mode='new'){
+  /* 出し忘れ警告：取り込んだ取引先で「登録済みなのに今回のPDFに無い」物件を一覧化 */
+  function toggleMonthEnd(cb){ monthEndCheck = cb.checked; renderMissing(); }
+  function renderMissing(){
+    const box = document.getElementById('missWarn');
+    document.getElementById('monthEndWrap').style.display = items.length ? 'flex' : 'none';
+    const cs = clientsInList();
+    if(!items.length || !cs.length){ box.style.display='none'; return; }
+    const loaded = new Set(items.map(it=>it.prop).filter(Boolean));
+    const missing = [];
+    Object.keys(propMap).forEach(p=>{
+      if(!cs.includes(propMap[p])) return;     // 今回取り込んだ取引先の物件だけが対象
+      if(loaded.has(p)) return;                // すでに今回のPDFに入っている
+      const f = lookupFreq(p);
+      if(f==='1' && !monthEndCheck) return;    // 月1回は「月末チェック」ON時のみ確認
+      missing.push({ p, f });
+    });
+    if(!missing.length){ box.style.display='none'; return; }
+    box.style.display='block';
+    const lines = missing.sort((a,b)=>a.p.localeCompare(b.p,'ja'))
+      .map(m=>`・${esc(m.p)}（${m.f==='1'?'月1回':'月2回'}）`).join('<br>');
+    box.innerHTML =
+      `<p class="mw-strong">📋 報告書が見当たりません（出し忘れ？）</p>`+
+      `<div style="font-size:13px; font-weight:700; color:#8a6400; line-height:1.9; margin-bottom:8px">${lines}</div>`+
+      `<p class="mw-note">${monthEndCheck
+        ? '月末チェック中：月1回の物件も含めて確認しています。今月まだ清掃していなければ要対応です。'
+        : '取り込んだ取引先で登録済みの物件のうち、今回のPDFに入っていないものです。'}</p>`;
+  }
+
+  /* ===== 新規物件モーダル（取り込むか／取引先／頻度 を質問） ===== */
+  let _resolver = null, _chipClients = [], _modalMode = 'new', _pickClient = null, _pickFreq = null;
+  function resolveNewProperty(prop, mode='new', preset=null){
     return new Promise(res=>{
-      _resolver = res; _modalMode = mode;
+      _resolver = res; _modalMode = mode; _pickClient = null; _pickFreq = null;
       document.getElementById('mProp').textContent = prop || '（物件名が読み取れませんでした）';
-      document.getElementById('mTitle').textContent = mode==='edit' ? '取引先を付け替え' : '新しい物件です';
+      document.getElementById('mTitle').textContent = mode==='edit' ? '取引先・頻度を変更' : '新しい物件です';
       document.getElementById('mMsg').textContent = mode==='edit'
-        ? 'この物件の取引先を選び直してください。'
-        : 'この物件を取り込みますか？取り込む場合は取引先を選んでください。';
+        ? 'この物件の取引先と清掃頻度を選び直してください。'
+        : 'この物件を取り込みますか？取引先と清掃頻度を選んでください。';
       document.getElementById('mSkip').textContent = mode==='edit' ? 'キャンセル' : '取り込まない（除外）';
       _chipClients = clientList();
       const cont = document.getElementById('mClients');
       cont.innerHTML = _chipClients.length
-        ? _chipClients.map((c,i)=>`<button class="chip" onclick="resolvePick('idx:${i}')">${esc(c)}</button>`).join('')
+        ? _chipClients.map((c,i)=>`<button class="chip" data-i="${i}" onclick="pickChip(${i})">${esc(c)}</button>`).join('')
         : '<span class="m-none">まだ登録された取引先はありません</span>';
       document.getElementById('mSubExisting').style.display = _chipClients.length ? 'block' : 'none';
       document.getElementById('mNewClient').value='';
+      document.getElementById('mSelClient').style.display='none';
+      document.querySelectorAll('#mFreq button').forEach(b=>b.classList.remove('sel'));
+      if(preset){
+        if(preset.client){ const i=_chipClients.indexOf(preset.client); if(i>=0){ pickChip(i); } else { setNewClientVal(preset.client); } }
+        if(preset.freq){ setFreq(preset.freq); }
+      }
+      updateConfirm();
       document.getElementById('modalBg').style.display='flex';
     });
   }
+  function pickChip(i){
+    _pickClient = _chipClients[i];
+    document.getElementById('mNewClient').value='';
+    document.querySelectorAll('#mClients .chip').forEach(b=>b.classList.toggle('sel', +b.dataset.i===i));
+    showSelClient(); updateConfirm();
+  }
+  function setNewClient(){
+    const name = document.getElementById('mNewClient').value.trim();
+    if(!name){ alert('取引先名を入力してください。'); return; }
+    setNewClientVal(name);
+  }
+  function setNewClientVal(name){
+    _pickClient = name;
+    document.querySelectorAll('#mClients .chip').forEach(b=>b.classList.remove('sel'));
+    showSelClient(); updateConfirm();
+  }
+  function showSelClient(){
+    const el=document.getElementById('mSelClient');
+    el.style.display='block'; el.textContent='取引先：'+_pickClient;
+  }
+  function setFreq(f){
+    _pickFreq = f;
+    document.querySelectorAll('#mFreq button').forEach(b=>b.classList.toggle('sel', b.dataset.f===f));
+    updateConfirm();
+  }
+  function updateConfirm(){ document.getElementById('mConfirm').disabled = !(_pickClient && _pickFreq); }
+  function confirmModal(){
+    if(!_pickClient || !_pickFreq) return;
+    closeModal(); const r=_resolver; _resolver=null; r({ client:_pickClient, freq:_pickFreq });
+  }
   function resolvePick(v){
-    if(v==='__new__'){
-      const name = document.getElementById('mNewClient').value.trim();
-      if(!name){ alert('取引先名を入力してください。'); return; }
-      closeModal(); _resolver({ client:name }); _resolver=null; return;
-    }
-    if(v===null){ closeModal(); _resolver({ skip:true }); _resolver=null; return; }
-    if(typeof v==='string' && v.startsWith('idx:')){
-      const c = _chipClients[+v.slice(4)];
-      closeModal(); _resolver({ client:c }); _resolver=null; return;
-    }
+    if(v===null){ closeModal(); const r=_resolver; _resolver=null; r({ skip:true }); }
   }
   function closeModal(){ document.getElementById('modalBg').style.display='none'; }
 
@@ -396,12 +520,16 @@
     }
     box.innerHTML = _mgmtClientNames.map((c,ci)=>{
       const open = q ? true : !collapsedClients[c];   // 検索中は一致グループを開く
-      const rows = byClient[c].sort((a,b)=>a.p.localeCompare(b.p,'ja')).map(o=>`
+      const rows = byClient[c].sort((a,b)=>a.p.localeCompare(b.p,'ja')).map(o=>{
+        const f = lookupFreq(o.p);
+        return `
         <div class="mg-row">
           <span class="mg-pname">${esc(o.p)}</span>
-          <button onclick="editMapping(${o.idx})" title="取引先を付け替え">✎</button>
+          <span class="mg-fbadge${f==='1'?' q':''}">${f==='1'?'月1回':'月2回'}</span>
+          <button onclick="editMapping(${o.idx})" title="取引先・頻度を変更">✎</button>
           <button class="rm" onclick="delMapping(${o.idx})" title="削除">×</button>
-        </div>`).join('');
+        </div>`;
+      }).join('');
       return `<div class="mg-client">
         <div class="mg-cname" onclick="toggleClient(${ci})">
           <span class="mg-caret">${open?'▼':'▶'}</span>
@@ -415,49 +543,109 @@
   function toggleClient(ci){ const c=_mgmtClientNames[ci]; if(!c) return; collapsedClients[c]=!collapsedClients[c]; renderMgmt(); }
   async function editMapping(idx){
     const prop = _mgmtEntries[idx][0];
-    const res = await resolveNewProperty(prop, 'edit');
+    const res = await resolveNewProperty(prop, 'edit', { client:propMap[prop], freq:lookupFreq(prop) });
     if(res.skip) return;                                  // キャンセル
-    propMap[prop] = res.client; saveMap();
+    propMap[prop] = res.client; freqMap[prop] = res.freq; saveMap(); saveFreq();
     items.forEach(it=>{ if(it.prop===prop) it.client=res.client; });   // 取込済みにも反映
     renderAll();
   }
   function delMapping(idx){
     const prop = _mgmtEntries[idx][0];
     if(!confirm(`「${prop}」の登録を削除しますか？\n（次回この物件を取り込むと、また取引先を確認します）`)) return;
-    delete propMap[prop]; saveMap();
+    delete propMap[prop]; delete freqMap[prop]; saveMap(); saveFreq();
     renderMgmt();
+  }
+
+  /* ===== 画質選択（メール送付用の軽量化） ===== */
+  function setQ(q){
+    quality = q;
+    document.querySelectorAll('#qbar .qbtns button').forEach(b=>b.classList.toggle('active', b.dataset.q===q));
+    updateQHint();
+  }
+  function fmtSize(b){ return b>=1048576 ? (b/1048576).toFixed(1)+' MB' : Math.max(1,Math.round(b/1024))+' KB'; }
+  function estBytes(){                                   // まとめPDFのおおよその合計サイズを見積もる
+    const n=items.length; if(!n) return 0;
+    if(quality==='hi') return items.reduce((s,it)=>s+(it.bytes.byteLength||0),0);
+    return n*(quality==='std' ? 250000 : quality==='mid' ? 190000 : 110000);   // 1ページあたりの目安（200/170/130DPI）
+  }
+  function updateQHint(){
+    const desc={ hi:'今と同じ無劣化でそのまま結合（最もキレイ・最大サイズ）',
+                 std:'約200DPIに再圧縮。印刷もキレイでメール添付向き（推奨）',
+                 mid:'約170DPIに再圧縮。印刷も十分で標準より軽い',
+                 lite:'約130DPIに再圧縮。画面確認・大量送付向き（最も軽い）' };
+    let t=desc[quality];
+    if(items.length){ const b=estBytes(); t+=` ｜ 推定サイズ：約 ${fmtSize(b)}`+(b>25*1048576?'（⚠️ 25MB超）':''); }
+    document.getElementById('qHint').textContent=t;
   }
 
   async function merge(){
     const btn=document.getElementById('btnMerge');
-    btn.disabled=true; setStatus('ok','結合中…少しお待ちください');
+    btn.disabled=true;
+    setStatus('ok', quality==='hi' ? '結合中…少しお待ちください' : '軽量化して結合中…（枚数が多いと少し時間がかかります）');
     try{
-      const out = await PDFLib.PDFDocument.create();
-      for(const it of items){
-        const src = await PDFLib.PDFDocument.load(it.bytes, { ignoreEncryption:true });
-        const pages = await out.copyPages(src, src.getPageIndices());
-        pages.forEach(p=>out.addPage(p));
-      }
+      const out = quality==='hi' ? await buildLossless() : await buildCompressed(QCFG[quality]);
       const bytes = await out.save();
+      const pageCount = out.getPageCount();
       const company=document.getElementById('f_company').value.trim();
       const period=document.getElementById('f_period').value.trim();
       const name = ['清掃報告書まとめ', company, period].filter(s=>s).join('_') + '.pdf';
       const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
       const a=document.createElement('a'); a.href=url; a.download=name; a.click();
       setTimeout(()=>URL.revokeObjectURL(url), 10000);
-      setStatus('ok',`✅ ${items.length}件・${out.getPageCount()}ページを「${name}」として保存しました`);
+      const over = bytes.length > 25*1048576;
+      setStatus(over?'ng':'ok',
+        `✅ ${items.length}件・${pageCount}ページ / ${fmtSize(bytes.length)}「${name}」を保存しました`+
+        (over?' ⚠️ 25MBを超えています。「軽量」を選ぶか、ファイルを分けて送ってください。':''));
     }catch(err){
-      setStatus('ng','結合に失敗しました：'+err.message);
+      setStatus('ng','結合に失敗しました：'+(err&&err.message||err));
     }
     updateMergeState();
   }
   function forceMerge(){ mixOverride=true; updateMergeState(); merge(); }
+
+  /* 無劣化：各PDFのページをそのままコピー（今までどおり） */
+  async function buildLossless(){
+    const out = await PDFLib.PDFDocument.create();
+    for(const it of items){
+      const src = await PDFLib.PDFDocument.load(it.bytes, { ignoreEncryption:true });
+      const pages = await out.copyPages(src, src.getPageIndices());
+      pages.forEach(p=>out.addPage(p));
+    }
+    return out;
+  }
+
+  /* 再圧縮：pdf.jsで各ページを目標DPIで描き直し→JPEG再圧縮→A4に貼り直して結合。
+     元の各報告書PDFは変更せず、まとめPDFだけを軽くする（原本＝月末印刷用は高画質のまま）。 */
+  async function buildCompressed(cfg){
+    const out = await PDFLib.PDFDocument.create();
+    const A4W=595.28, A4H=841.89;
+    for(const it of items){
+      const doc = await pdfjsLib.getDocument({ data: it.bytes.slice(0) }).promise;  // sliceで原本ArrayBufferを守る
+      try{
+        for(let pn=1; pn<=doc.numPages; pn++){
+          const page = await doc.getPage(pn);
+          const vp = page.getViewport({ scale: cfg.dpi/72 });
+          const canvas = document.createElement('canvas');
+          canvas.width  = Math.max(1, Math.round(vp.width));
+          canvas.height = Math.max(1, Math.round(vp.height));
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);   // 透過対策で白背景
+          await page.render({ canvasContext:ctx, viewport:vp }).promise;
+          const jpg = await out.embedJpg(dataURLtoU8(canvas.toDataURL('image/jpeg', cfg.jpeg)));
+          out.addPage([A4W, A4H]).drawImage(jpg, { x:0, y:0, width:A4W, height:A4H });
+        }
+      } finally { if(doc.cleanup) doc.cleanup(); if(doc.destroy) doc.destroy(); }
+    }
+    return out;
+  }
+  function dataURLtoU8(u){ const b=atob(u.split(',')[1]); const a=new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a; }
 
   function setStatus(type,msg){ const s=document.getElementById('status');
     s.className='status'+(type?' '+type:''); s.textContent=msg; }
   function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
   renderMgmt();   // 起動時に登録一覧を表示
+  updateQHint();  // 起動時に画質ヒントを表示
 </script>
 </body>
 </html>
