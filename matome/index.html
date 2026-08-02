@@ -81,6 +81,21 @@
   input[type=text]:focus{ outline:none; border-color:var(--orange); }
   .auto-tag{ font-weight:400; color:var(--navy2); }
 
+  /* 期間の指定（ファイル名になる） */
+  .fld-blk{ margin-bottom:0; }
+  .fld-blk > .lbl{ display:block; font-size:13px; font-weight:700; color:var(--muted); margin-bottom:5px; }
+  .per-month{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .per-month select{ padding:12px 10px; font-size:16px; border:1.5px solid var(--line); border-radius:10px;
+    background:#fff; color:var(--ink); font-family:inherit; }
+  .per-month .pm-note{ font-size:12.5px; font-weight:700; color:var(--muted); }
+  .per-btns{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .per-btns button{ padding:12px 8px; font-size:14px; font-weight:700; border:1.5px solid var(--navy2);
+    border-radius:10px; background:#fff; color:var(--navy); cursor:pointer; }
+  .per-btns button.active{ background:var(--navy); color:#fff; border-color:var(--navy); }
+  .fname-prev{ margin:12px 0 0; padding:11px 12px; border-radius:10px; background:#eef2f8;
+    font-size:12.5px; font-weight:700; color:var(--muted); line-height:1.7; word-break:break-all; }
+  .fname-prev b{ display:block; font-size:14px; color:var(--navy); }
+
   .btn-merge{ width:100%; padding:16px; font-size:16px; font-weight:800; border:none; border-radius:12px;
     cursor:pointer; color:#fff; background:linear-gradient(135deg,var(--orange) 0%,var(--orange2) 100%); }
   .btn-merge:disabled{ opacity:.45; cursor:default; }
@@ -183,9 +198,22 @@
   <div class="card">
     <h2><span class="num">2</span>宛先と期間（ファイル名に使います）</h2>
     <label class="fld"><span>宛先（取引企業名）<span class="auto-tag" id="companyAuto"></span></span>
-      <input type="text" id="f_company" placeholder="例：〇〇不動産" oninput="this.dataset.auto='0';document.getElementById('companyAuto').textContent='';"></label>
-    <label class="fld"><span>期間</span>
-      <input type="text" id="f_period" placeholder="例：2026年6月前半"></label>
+      <input type="text" id="f_company" placeholder="例：〇〇不動産"
+        oninput="this.dataset.auto='0';document.getElementById('companyAuto').textContent='';updateFileName();"></label>
+    <div class="fld-blk">
+      <span class="lbl">期間<span class="auto-tag" id="periodAuto"></span></span>
+      <div class="per-month">
+        <select id="f_month" onchange="onMonthChange()"></select>
+        <span class="pm-note">の報告書として保存します</span>
+      </div>
+      <div class="per-btns" id="perBtns">
+        <button data-p="h1" onclick="setPeriod('h1')">前半分</button>
+        <button data-p="h2" onclick="setPeriod('h2')">後半分</button>
+        <button data-p="m1" onclick="setPeriod('m1')">月1回</button>
+        <button data-p="mo" onclick="setPeriod('mo')">月分</button>
+      </div>
+    </div>
+    <p class="fname-prev" id="fnamePrev"></p>
   </div>
 
   <div class="card">
@@ -267,6 +295,30 @@
   function clientList(){ return [...new Set(Object.values(propMap))].sort((a,b)=>a.localeCompare(b,'ja')); }
   function lookupClient(prop){ return Object.prototype.hasOwnProperty.call(propMap, prop) ? propMap[prop] : null; }
 
+  /* ===== 表記ゆれ対策：照合だけ正規化する（表示名は登録された表記のまま） =====
+     半角/全角の数字・英字、空白の有無、ハイフンの種類、中黒などが違っても同じ物件として扱う。
+     報告書ツールの normKey と同じ規則にしてあるので、両ツールの判定がずれない。 */
+  function normKey(s){
+    let t=String(s||'');
+    try{ t=t.normalize('NFKC'); }catch(e){}     // 全角英数→半角、半角カナ→全角
+    return t.toLowerCase()
+      .replace(/[\s　]/g,'')                    // 空白（半角・全角）は無視
+      .replace(/[‐‑‒–—―−ｰ]/g,'-')             // ハイフン類を統一
+      .replace(/(\d)ー/g,'$1-')                 // 数字のあとの長音符はハイフンの打ち間違いとみなす
+      .replace(/[・･,、.。]/g,'');               // 中黒・句読点は無視
+  }
+  function normIndex(){                          // 照合キー → 登録ずみの正式表記
+    const idx={};
+    Object.keys(propMap).forEach(p=>{ const k=normKey(p); if(k && !(k in idx)) idx[k]=p; });
+    return idx;
+  }
+  // 取り込んだ物件名を、登録ずみの表記に寄せる（別物件として二重登録されるのを防ぐ）
+  function canonProp(prop){
+    if(!prop) return prop;
+    if(Object.prototype.hasOwnProperty.call(propMap, prop)) return prop;
+    return normIndex()[normKey(prop)] || prop;
+  }
+
   /* ===== 物件ごとの清掃頻度（'2'=月2回 / '1'=月1回）。未登録の既存物件は安全側で月2回扱い ===== */
   const LS_FREQ = 'must_property_freq';
   function loadFreq(){ try{ return JSON.parse(localStorage.getItem(LS_FREQ)) || {}; }catch(e){ return {}; } }
@@ -311,10 +363,13 @@
     const files = [...fileList].filter(f=>/\.pdf$/i.test(f.name) || f.type==='application/pdf');
     if(!files.length){ setStatus('ng','PDFファイルを選んでください。'); return; }
     mixOverride = false;
+    const fixed = [];                                  // 表記ゆれを登録ずみの表記に寄せた分
     for(const f of files){
       if(items.some(it=>it.name===f.name)) continue;   // 同名は二重登録しない
       const bytes = await f.arrayBuffer();
       const meta = await readMeta(bytes, f.name);
+      const canon = canonProp(meta.prop);              // 半角/全角違い等は登録ずみの表記に統一
+      if(canon !== meta.prop){ fixed.push(`${meta.prop} → ${canon}`); meta.prop = canon; }
       let client = lookupClient(meta.prop);            // 既知の物件なら取引先を自動割り当て
       if(client === null){                              // 新しい物件 → 取り込むか・取引先を確認
         const res = await resolveNewProperty(meta.prop);
@@ -328,6 +383,8 @@
     renderAll();
     if(persistFailed){
       setStatus('ng','⚠️ この端末（プライベートブラウズ等）では取引先・頻度を保存できません。結合はできますが、次回は再入力が必要になる場合があります。');
+    }else if(fixed.length){
+      setStatus('ok','✅ 物件名の書き方のちがい '+fixed.length+'件を、登録ずみの表記に合わせました（'+fixed.join('／')+'）');
     }else{
       setStatus('','');
     }
@@ -367,6 +424,8 @@
     updateMergeState();
     renderMissing();
     updateQHint();
+    autoPeriod();      // 清掃日から「何月・前半/後半」を推定
+    updateFileName();
   }
   function move(i,d){ const j=i+d; if(j<0||j>=items.length)return; curSort=null; [items[i],items[j]]=[items[j],items[i]]; renderList(); }
   function remove(i){ items.splice(i,1); mixOverride=false; renderList(); }
@@ -428,6 +487,62 @@
       `<p class="mw-note">${monthEndCheck
         ? '月末チェック中：月1回の物件も含めて確認しています。今月まだ清掃していなければ要対応です。'
         : '取り込んだ取引先で登録済みの物件のうち、今回のPDFに入っていないものです。'}</p>`;
+  }
+
+  /* ===== 期間（ファイル名「清掃報告書_○月△半分_【取引先名】」に使う） =====
+     書き方は4通り： h1=○月前半分 / h2=○月後半分 / m1=○月_月1回 / mo=○月分
+     月と書き方は取り込んだPDFの清掃日から自動で決め、ボタンで選び直せる（選び直したら自動判定はしない） */
+  const LS_PSTYLE = 'must_client_period_style';   // 取引先ごとに前回使った書き方（月1回系のみ記憶）
+  let pStyleMap = (function(){ try{ return JSON.parse(localStorage.getItem(LS_PSTYLE))||{}; }catch(e){ return {}; } })();
+  let periodStyle = 'h1';
+  let periodTouched = false, monthTouched = false;
+
+  function initMonthSelect(){
+    const s=document.getElementById('f_month');
+    s.innerHTML = Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1}月</option>`).join('');
+    s.value = String(new Date().getMonth()+1);      // 初期値は今月（PDFを入れると清掃日の月に合わせる）
+  }
+  function setPeriod(p){ periodStyle=p; periodTouched=true; updateFileName(); }
+  function onMonthChange(){ monthTouched=true; updateFileName(); }
+
+  function autoPeriod(){
+    const ds = items.map(it=>it.date).filter(d=>/^\d{8}$/.test(d));
+    if(ds.length && !monthTouched){                 // 清掃日でいちばん多い月に合わせる
+      const cnt={}; ds.forEach(d=>{ const m=+d.slice(4,6); cnt[m]=(cnt[m]||0)+1; });
+      const top=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a] || a-b)[0];
+      document.getElementById('f_month').value=String(+top);
+    }
+    if(periodTouched) return;
+    const cs=clientsInList();
+    const remembered = cs.length===1 ? pStyleMap[cs[0]] : null;
+    const allMonthly = items.length && items.every(it=>it.prop && lookupFreq(it.prop)==='1');
+    if(allMonthly){                                  // 月1回の物件だけ＝「○月分」か「○月_月1回」（前回の書き方を再現）
+      periodStyle = (remembered==='m1'||remembered==='mo') ? remembered : 'mo';
+    }else if(ds.length){                             // 16日以降が多ければ後半分
+      periodStyle = ds.filter(d=>+d.slice(6,8)>=16).length > ds.length/2 ? 'h2' : 'h1';
+    }
+  }
+
+  function periodText(){
+    const m=+document.getElementById('f_month').value||0; if(!m) return '';
+    return periodStyle==='h1' ? `${m}月前半分`
+         : periodStyle==='h2' ? `${m}月後半分`
+         : periodStyle==='m1' ? `${m}月_月1回`
+         :                      `${m}月分`;
+  }
+  function safeName(s){ return String(s).replace(/[\\\/:*?"<>|\r\n\t]/g,'-').trim(); }
+  function outFileName(){
+    const c=safeName(document.getElementById('f_company').value.trim());
+    return ['清掃報告書', periodText(), c?`【${c}】`:''].filter(Boolean).join('_')+'.pdf';
+  }
+  function updateFileName(){
+    const m=+document.getElementById('f_month').value||0;
+    document.querySelectorAll('#perBtns button').forEach(b=>{
+      const p=b.dataset.p;
+      b.classList.toggle('active', p===periodStyle);
+      b.textContent = p==='h1'?`${m}月前半分` : p==='h2'?`${m}月後半分` : p==='m1'?`${m}月_月1回` : `${m}月分`;
+    });
+    document.getElementById('fnamePrev').innerHTML='保存されるファイル名<b>'+esc(outFileName())+'</b>';
   }
 
   /* ===== 新規物件モーダル（取り込むか／取引先／頻度 を質問） ===== */
@@ -586,9 +701,9 @@
       const out = quality==='hi' ? await buildLossless() : await buildCompressed(QCFG[quality]);
       const bytes = await out.save();
       const pageCount = out.getPageCount();
-      const company=document.getElementById('f_company').value.trim();
-      const period=document.getElementById('f_period').value.trim();
-      const name = ['清掃報告書まとめ', company, period].filter(s=>s).join('_') + '.pdf';
+      const name = outFileName();                       // 清掃報告書_○月△半分_【取引先名】.pdf
+      const cs = clientsInList();                       // 月1回の書き方は取引先ごとに覚えて次回も同じにする
+      if(cs.length===1 && (periodStyle==='m1'||periodStyle==='mo')){ pStyleMap[cs[0]]=periodStyle; persist(LS_PSTYLE, pStyleMap); }
       const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
       const a=document.createElement('a'); a.href=url; a.download=name; a.click();
       setTimeout(()=>URL.revokeObjectURL(url), 10000);
@@ -644,8 +759,10 @@
     s.className='status'+(type?' '+type:''); s.textContent=msg; }
   function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
-  renderMgmt();   // 起動時に登録一覧を表示
-  updateQHint();  // 起動時に画質ヒントを表示
+  renderMgmt();       // 起動時に登録一覧を表示
+  updateQHint();      // 起動時に画質ヒントを表示
+  initMonthSelect();  // 期間の月プルダウン（初期＝今月）
+  updateFileName();   // 起動時にファイル名プレビューを表示
 </script>
 </body>
 </html>

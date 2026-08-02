@@ -74,6 +74,21 @@
     background:rgba(20,49,94,.85); color:#fff; font-size:14px; cursor:pointer; }
   .hint-note{ font-size:12px; color:var(--muted); margin:8px 2px 0; }
 
+  /* 物件名サジェスト：入力欄に重ねて出す（画面の高さは変わらない） */
+  .fld{ display:block; margin-bottom:14px; }
+  .fld > .lbl{ display:block; font-size:13px; font-weight:700; color:var(--muted); margin-bottom:5px; }
+  .ac-wrap{ position:relative; }
+  .ac-list{ position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:40; background:#fff;
+    border:1.5px solid var(--navy2); border-radius:10px; box-shadow:0 8px 22px rgba(20,49,94,.18);
+    max-height:238px; overflow:auto; display:none; -webkit-overflow-scrolling:touch; }
+  .ac-item{ padding:12px; font-size:15px; border-bottom:1px solid var(--line); cursor:pointer;
+    overflow-wrap:anywhere; }
+  .ac-item:last-child{ border-bottom:none; }
+  .ac-item.fix{ background:#fff6ee; color:var(--orange2); font-weight:700; line-height:1.5; }
+  .ac-item.fix b{ display:block; font-size:11.5px; font-weight:800; color:#b3500a; margin-bottom:2px; }
+  .rp-lbl{ font-size:12px; font-weight:700; color:var(--muted); align-self:center; }
+  .nchip.rp{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
   /* 清掃者ワンタップ */
   .name-chips{ display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 2px; }
   .nchip{ display:inline-flex; align-items:center; gap:5px; padding:8px 13px; border:1.5px solid var(--navy2);
@@ -190,8 +205,15 @@
 
   <div class="card">
     <h2><span class="num">1</span>基本情報</h2>
-    <label class="fld"><span>清掃場所</span>
-      <input type="text" id="f_place" placeholder="物件名を入力して下さい" oninput="render()"></label>
+    <div class="fld">
+      <span class="lbl">清掃場所</span>
+      <div class="ac-wrap">
+        <input type="text" id="f_place" placeholder="物件名を入力（1文字打つと候補が出ます）" autocomplete="off"
+          oninput="render();onPlaceInput()" onfocus="onPlaceInput()" onblur="setTimeout(closeAc,200)">
+        <div class="ac-list" id="acList"></div>
+      </div>
+      <div class="name-chips" id="recentPlaces"></div>
+    </div>
     <label class="fld"><span>清掃日</span>
       <input type="date" id="f_date" oninput="render()"></label>
     <label class="fld"><span>清掃者</span>
@@ -345,6 +367,76 @@
       `<div class="thumb"><img src="${d}"><button class="del" onclick="delPhoto(${i})">×</button></div>`).join('');
   }
 
+  /* ===== 物件名の候補（表記ゆれ防止） =====
+     ・過去に使った物件名を端末に記憶し、打った文字に合う候補だけを入力欄に重ねて表示（画面は伸びない）
+     ・同じ場所に 物件マスタ.json を置けば、その一覧も候補に加わる（無ければ何もしない）
+     ・打った名前が登録ずみの表記と実質同じなら、先頭で「登録ずみの書き方に合わせる」を提案 */
+  const LS_PLACES='must_place_history';
+  function loadPlaces(){ try{ return JSON.parse(localStorage.getItem(LS_PLACES)||'[]'); }catch(e){ return []; } }
+  function storePlaces(a){ try{ localStorage.setItem(LS_PLACES, JSON.stringify(a.slice(0,300))); }catch(e){} }
+  let masterPlaces=[];
+  // 照合用キー（まとめツールと同じ規則。全角/半角・空白・ハイフン違いを同じ物件とみなす）
+  function normKey(s){
+    let t=String(s||'');
+    try{ t=t.normalize('NFKC'); }catch(e){}
+    return t.toLowerCase()
+      .replace(/[\s　]/g,'')
+      .replace(/[‐‑‒–—―−ｰ]/g,'-')
+      .replace(/(\d)ー/g,'$1-')
+      .replace(/[・･,、.。]/g,'');
+  }
+  function allPlaces(){
+    const seen=new Set(), out=[];
+    loadPlaces().concat(masterPlaces).forEach(p=>{
+      const k=normKey(p); if(p && k && !seen.has(k)){ seen.add(k); out.push(p); }
+    });
+    return out;
+  }
+  function rememberPlace(p){
+    p=String(p||'').trim(); if(!p) return;
+    const k=normKey(p), a=loadPlaces().filter(x=>normKey(x)!==k);
+    a.unshift(p); storePlaces(a); renderRecent();
+  }
+  let _acRows=[];
+  function onPlaceInput(){
+    const q=val('f_place').trim(), nq=normKey(q), box=document.getElementById('acList');
+    const rows=[];
+    if(nq){
+      const all=allPlaces();
+      const same=all.find(p=>normKey(p)===nq);
+      if(same && same!==q) rows.push({p:same, fix:true});                 // 表記だけ違う＝合わせる提案
+      all.filter(p=>p!==same && normKey(p).includes(nq)).slice(0,8).forEach(p=>rows.push({p}));
+    }
+    _acRows=rows;
+    box.innerHTML=rows.map((r,i)=>
+      // mousedown で拾う＝入力欄のフォーカスが外れる前に確定。候補リストのスクロール中に誤選択もしない
+      `<div class="ac-item${r.fix?' fix':''}" onmousedown="event.preventDefault();pickPlace(${i})">`+
+      (r.fix?'<b>登録ずみの書き方に合わせる</b>':'')+esc(r.p)+'</div>').join('');
+    box.style.display=rows.length?'block':'none';
+  }
+  function pickPlace(i){
+    const r=_acRows[i]; if(!r) return;
+    document.getElementById('f_place').value=r.p;
+    closeAc(); render();
+  }
+  function closeAc(){ const b=document.getElementById('acList'); if(b) b.style.display='none'; }
+  function renderRecent(){
+    const a=loadPlaces().slice(0,3);
+    document.getElementById('recentPlaces').innerHTML = a.length
+      ? '<span class="rp-lbl">最近：</span>'+a.map((p,i)=>
+          `<span class="nchip rp" onclick="useRecent(${i})">${esc(p)}</span>`).join('')
+      : '';
+  }
+  function useRecent(i){
+    const p=loadPlaces()[i]; if(p==null) return;
+    document.getElementById('f_place').value=p; closeAc(); render();
+  }
+  // 物件マスタ.json（あれば読む。配列 or {properties:[...]} の両方に対応）
+  fetch('物件マスタ.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{
+    const list=Array.isArray(j)?j:(j&&Array.isArray(j.properties)?j.properties:null);
+    if(list) masterPlaces=list.filter(x=>typeof x==='string' && x.trim()).map(x=>x.trim());
+  }).catch(()=>{});
+
   /* 清掃者の名前プリセット（端末内localStorageに保存） */
   function loadNames(){ try{ return JSON.parse(localStorage.getItem('cleanerNames')||'[]'); }catch(e){ return []; } }
   function storeNames(a){ try{ localStorage.setItem('cleanerNames', JSON.stringify(a)); }catch(e){} }
@@ -459,6 +551,7 @@
       const _pn=[val('f_place').trim(), (val('f_date')||'').replace(/-/g,'')].filter(Boolean).join('_');
       _pdfName=(_pn||'清掃報告書')+'.pdf';
       _pdfBlob=pdf.output('blob');
+      rememberPlace(val('f_place'));   // 実際に報告書にした物件名だけを候補として記憶する
       // PDFができたら「作成」ボタンは隠し、「保存/LINEで送る」だけにする（作成ボタンの二重表示を解消）
       btn.style.display='none';
       document.getElementById('pdfHint').style.display='none';
@@ -490,6 +583,7 @@
      クリアして入力画面に戻る。保存後に出るボタンなのでPDFは保存済み＝確認ダイアログなしで即クリア。 */
   function newReport(){
     document.getElementById('f_place').value='';
+    closeAc();
     document.getElementById('f_notes').value='';
     photos=[];
     works.forEach(w=>w.checked=false);   // 作業内容は項目リストは残し、チェックだけ外す
@@ -544,7 +638,7 @@
   function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
   document.getElementById('f_date').valueAsDate=new Date();
-  renderChecks(); renderNameChips(); render();
+  renderChecks(); renderNameChips(); renderRecent(); render();
 </script>
 </body>
 </html>
