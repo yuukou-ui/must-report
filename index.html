@@ -81,9 +81,13 @@
   .ac-list{ position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:40; background:#fff;
     border:1.5px solid var(--navy2); border-radius:10px; box-shadow:0 8px 22px rgba(20,49,94,.18);
     max-height:238px; overflow:auto; display:none; -webkit-overflow-scrolling:touch; }
-  .ac-item{ padding:12px; font-size:15px; border-bottom:1px solid var(--line); cursor:pointer;
-    overflow-wrap:anywhere; }
+  .ac-item{ display:flex; align-items:center; gap:6px; padding:12px; font-size:15px;
+    border-bottom:1px solid var(--line); cursor:pointer; }
   .ac-item:last-child{ border-bottom:none; }
+  .ac-item .ac-txt{ flex:1; min-width:0; overflow-wrap:anywhere; }
+  .ac-item .ac-del{ flex:none; width:34px; height:34px; margin:-6px -6px -6px 0; border:none;
+    background:none; color:#a0a6b0; font-size:17px; line-height:1; cursor:pointer; border-radius:8px; }
+  .ac-item .ac-del:active{ background:var(--bg2); color:var(--orange2); }
   .ac-item.fix{ background:#fff6ee; color:var(--orange2); font-weight:700; line-height:1.5; }
   .ac-item.fix b{ display:block; font-size:11.5px; font-weight:800; color:#b3500a; margin-bottom:2px; }
   .rp-lbl{ font-size:12px; font-weight:700; color:var(--muted); align-self:center; }
@@ -208,8 +212,8 @@
     <div class="fld">
       <span class="lbl">清掃場所</span>
       <div class="ac-wrap">
-        <input type="text" id="f_place" placeholder="物件名を入力（1文字打つと候補が出ます）" autocomplete="off"
-          oninput="render();onPlaceInput()" onfocus="onPlaceInput()" onblur="setTimeout(closeAc,200)">
+        <input type="text" id="f_place" placeholder="物件名を入力（変換前でも候補が出ます）" autocomplete="off"
+          oninput="render();onPlaceInput()" onfocus="onPlaceFocus()" onblur="onPlaceBlur()">
         <div class="ac-list" id="acList"></div>
       </div>
       <div class="name-chips" id="recentPlaces"></div>
@@ -372,7 +376,14 @@
      ・同じ場所に 物件マスタ.json を置けば、その一覧も候補に加わる（無ければ何もしない）
      ・打った名前が登録ずみの表記と実質同じなら、先頭で「登録ずみの書き方に合わせる」を提案 */
   const LS_PLACES='must_place_history';
-  function loadPlaces(){ try{ return JSON.parse(localStorage.getItem(LS_PLACES)||'[]'); }catch(e){ return []; } }
+  // 記憶の形は {n:物件名, y:読み(ひらがな)}。以前の「文字列だけ」の記録もそのまま読める
+  function loadPlaces(){
+    try{
+      return (JSON.parse(localStorage.getItem(LS_PLACES)||'[]'))
+        .map(x=> typeof x==='string' ? {n:x, y:''} : {n:String(x&&x.n||''), y:String(x&&x.y||'')})
+        .filter(o=>o.n);
+    }catch(e){ return []; }
+  }
   function storePlaces(a){ try{ localStorage.setItem(LS_PLACES, JSON.stringify(a.slice(0,300))); }catch(e){} }
   let masterPlaces=[];
   // 照合用キー（まとめツールと同じ規則。全角/半角・空白・ハイフン違いを同じ物件とみなす）
@@ -385,56 +396,147 @@
       .replace(/(\d)ー/g,'$1-')
       .replace(/[・･,、.。]/g,'');
   }
+  /* 候補の一覧。i＝この端末で最後に使った順番（0が直近／-1は使ったことがない＝物件マスタのみ） */
   function allPlaces(){
-    const seen=new Set(), out=[];
-    loadPlaces().concat(masterPlaces).forEach(p=>{
-      const k=normKey(p); if(p && k && !seen.has(k)){ seen.add(k); out.push(p); }
+    const seen={}, out=[];
+    const hist=loadPlaces();
+    hist.map((o,i)=>({...o, i})).concat(masterPlaces.map(o=>({...o, i:-1}))).forEach(o=>{
+      const k=normKey(o.n); if(!o.n || !k) return;
+      if(!(k in seen)){ seen[k]=out.length; out.push({n:o.n, y:o.y, i:o.i}); }
+      else if(o.y && !out[seen[k]].y){ out[seen[k]].y=o.y; }   // 読みだけ後から補う
     });
     return out;
   }
-  function rememberPlace(p){
-    p=String(p||'').trim(); if(!p) return;
-    const k=normKey(p), a=loadPlaces().filter(x=>normKey(x)!==k);
-    a.unshift(p); storePlaces(a); renderRecent();
+  /* 同じ順位の中の並び：最後に出したのが古い物件を上に。
+     2週間で全物件を漏れなく回る運用のため、直前に出した物件＝次に必要になる可能性が最も低い。
+     使ったことがない物件（物件マスタ由来）は判断材料がないので最後に置く。 */
+  function byOld(a,b){
+    if(a.i<0 && b.i<0) return 0;
+    if(a.i<0) return 1;
+    if(b.i<0) return -1;
+    return b.i-a.i;
   }
-  let _acRows=[];
+  function rememberPlace(p, yomi){
+    p=String(p||'').trim(); if(!p) return;
+    const k=normKey(p), a=loadPlaces();
+    const old=a.find(o=>normKey(o.n)===k);
+    const y=String(yomi||'').trim() || (old ? old.y : '');     // 今回読みが取れなければ前回の読みを残す
+    const rest=a.filter(o=>normKey(o.n)!==k);
+    rest.unshift({n:p, y});
+    storePlaces(rest); renderDueChips();
+  }
+  // 検索用のキー。normKeyに加えて「ひらがな→カタカナ」「長音符・ハイフン無視」まで丸める。
+  // 変換前の未確定文字（例：ますと）でもカタカナの物件名（マストハイツ101）に当たるようにするため
+  function searchKey(s){
+    return normKey(s)
+      .replace(/[ぁ-ゖ]/g, c=>String.fromCharCode(c.charCodeAt(0)+0x60))
+      .replace(/[ー-]/g,'');
+  }
+  // 物件名そのものと「読み」の両方を探す＝漢字の物件名でも、ひらがなを打った段階で候補に出る
+  function hits(o, sq){ return searchKey(o.n).includes(sq) || (o.y && searchKey(o.y).includes(sq)); }
+  // 1文字目から候補を出すぶん、頭から一致するものを上に。同じ順位なら「最近使った順」のまま
+  function rank(o, sq){
+    if(searchKey(o.n).startsWith(sq)) return 0;
+    if(o.y && searchKey(o.y).startsWith(sq)) return 1;
+    return 2;
+  }
+  let _acRows=[], _acTimer=null, _acLastVal=null, _yomiSess='', _yomiBuf='';
   function onPlaceInput(){
     const q=val('f_place').trim(), nq=normKey(q), box=document.getElementById('acList');
+    let sq=searchKey(q);
+    _acLastVal=val('f_place');
+    if(!q) _yomiBuf='';                  // 欄を空にしたら読みも取り直す（前の物件の読みが混ざらないように）
     const rows=[];
-    if(nq){
+    if(sq){
       const all=allPlaces();
-      const same=all.find(p=>normKey(p)===nq);
-      if(same && same!==q) rows.push({p:same, fix:true});                 // 表記だけ違う＝合わせる提案
-      all.filter(p=>p!==same && normKey(p).includes(nq)).slice(0,8).forEach(p=>rows.push({p}));
+      // ローマ字入力の途中（例：「まs」）で空振りしないよう、末尾の英字を落として探し直す
+      if(!all.some(o=>hits(o,sq))){ const s2=sq.replace(/[a-z]+$/,''); if(s2) sq=s2; }
+      const same=all.find(o=>normKey(o.n)===nq);
+      if(same && same.n!==q) rows.push({p:same.n, fix:true, del:same.i>=0});   // 表記だけ違う＝合わせる提案
+      all.filter(o=>o!==same && hits(o,sq))
+         .sort((a,b)=> rank(a,sq)-rank(b,sq) || byOld(a,b))
+         .slice(0,8)
+         .forEach(o=>rows.push({p:o.n, del:o.i>=0}));
     }
     _acRows=rows;
     box.innerHTML=rows.map((r,i)=>
       // mousedown で拾う＝入力欄のフォーカスが外れる前に確定。候補リストのスクロール中に誤選択もしない
       `<div class="ac-item${r.fix?' fix':''}" onmousedown="event.preventDefault();pickPlace(${i})">`+
-      (r.fix?'<b>登録ずみの書き方に合わせる</b>':'')+esc(r.p)+'</div>').join('');
+        `<span class="ac-txt">${r.fix?'<b>登録ずみの書き方に合わせる</b>':''}${esc(r.p)}</span>`+
+        // ×＝この候補を端末の記憶から消す（打ち間違えた名前の後始末）。行の選択と取り違えないよう伝播を止める
+        (r.del?`<button class="ac-del" title="この候補を消す"
+           onmousedown="event.preventDefault();event.stopPropagation();delPlace(${i})">×</button>`:'')+
+      '</div>').join('');
     box.style.display=rows.length?'block':'none';
+  }
+  function delPlace(i){
+    const r=_acRows[i]; if(!r) return;
+    const k=normKey(r.p);
+    storePlaces(loadPlaces().filter(o=>normKey(o.n)!==k));
+    renderDueChips(); onPlaceInput();      // 消したうえで候補を出し直す（入力欄のカーソルはそのまま）
   }
   function pickPlace(i){
     const r=_acRows[i]; if(!r) return;
     document.getElementById('f_place').value=r.p;
+    _yomiBuf='';                       // 候補から選んだ＝読みは登録ずみのものを使う
     closeAc(); render();
   }
   function closeAc(){ const b=document.getElementById('acList'); if(b) b.style.display='none'; }
-  function renderRecent(){
-    const a=loadPlaces().slice(0,3);
-    document.getElementById('recentPlaces').innerHTML = a.length
-      ? '<span class="rp-lbl">最近：</span>'+a.map((p,i)=>
-          `<span class="nchip rp" onclick="useRecent(${i})">${esc(p)}</span>`).join('')
+
+  /* 日本語変換中（未確定）でも候補を出す。
+     iOS Safari は変換中に input イベントを飛ばさないことがあるため、
+     変換イベントを直接拾いつつ、入力欄にいる間だけ値の変化も見張る（二重の保険）。 */
+  function onPlaceFocus(){
+    _acLastVal=val('f_place');
+    onPlaceInput();
+    if(_acTimer) clearInterval(_acTimer);
+    _acTimer=setInterval(()=>{ if(val('f_place')!==_acLastVal) onPlaceInput(); }, 150);
+  }
+  function onPlaceBlur(){
+    if(_acTimer){ clearInterval(_acTimer); _acTimer=null; }
+    setTimeout(closeAc,200);
+  }
+  /* 「読み」の自動記憶：漢字に変換される前のひらがなを拾っておき、物件名と一緒に覚える。
+     例）ぶんきょう→文京 と変換して「文京マンション」を作ると、読み「ぶんきょうまんしょん」も記録され、
+     次からは「ぶんきょう」と打った段階（変換前）で候補に出る。読みは検索にしか使わないので、
+     取りこぼしても実害はない（候補が出ないだけ＝今までと同じ）。 */
+  const KANA=/^[ぁ-んァ-ヶー]+$/;
+  (function(){
+    const el=document.getElementById('f_place');
+    el.addEventListener('compositionstart', ()=>{ _yomiSess=''; onPlaceInput(); });
+    el.addEventListener('compositionupdate', e=>{
+      if(e.data && KANA.test(e.data)) _yomiSess=e.data;   // 変換される前の最後のかなを覚える
+      onPlaceInput();
+    });
+    el.addEventListener('compositionend', e=>{
+      const kana = (e.data && KANA.test(e.data)) ? e.data : _yomiSess;
+      if(kana) _yomiBuf += kana;                          // 変換を何回かに分けても読みをつなぐ
+      _yomiSess=''; onPlaceInput();
+    });
+  })();
+  /* ワンタップのチップ＝「しばらく報告書を出していない物件」3件。
+     2週間で全物件を回るので、直前に出した物件より“間があいている物件”のほうが次に来る可能性が高い。 */
+  let _chipRows=[];
+  function renderDueChips(){
+    const hist=loadPlaces();
+    _chipRows=hist.slice(-3).reverse();          // 末尾＝最後に出したのが古い順
+    document.getElementById('recentPlaces').innerHTML = _chipRows.length
+      ? '<span class="rp-lbl">そろそろ：</span>'+_chipRows.map((o,i)=>
+          `<span class="nchip rp" onclick="useDueChip(${i})">${esc(o.n)}</span>`).join('')
       : '';
   }
-  function useRecent(i){
-    const p=loadPlaces()[i]; if(p==null) return;
-    document.getElementById('f_place').value=p; closeAc(); render();
+  function useDueChip(i){
+    const o=_chipRows[i]; if(!o) return;
+    document.getElementById('f_place').value=o.n; _yomiBuf=''; closeAc(); render();
   }
-  // 物件マスタ.json（あれば読む。配列 or {properties:[...]} の両方に対応）
+  /* 物件マスタ.json（あれば読む。無ければ何もしない）
+     ["物件名", ...] でも [{"name":"文京マンション","yomi":"ぶんきょうまんしょん"}, ...] でも可。
+     {"properties":[...]} で包んであっても読む。 */
   fetch('物件マスタ.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{
     const list=Array.isArray(j)?j:(j&&Array.isArray(j.properties)?j.properties:null);
-    if(list) masterPlaces=list.filter(x=>typeof x==='string' && x.trim()).map(x=>x.trim());
+    if(!list) return;
+    masterPlaces=list.map(x=> typeof x==='string' ? {n:x.trim(), y:''}
+      : {n:String(x&&(x.name||x.n)||'').trim(), y:String(x&&(x.yomi||x.y)||'').trim()}).filter(o=>o.n);
   }).catch(()=>{});
 
   /* 清掃者の名前プリセット（端末内localStorageに保存） */
@@ -551,7 +653,7 @@
       const _pn=[val('f_place').trim(), (val('f_date')||'').replace(/-/g,'')].filter(Boolean).join('_');
       _pdfName=(_pn||'清掃報告書')+'.pdf';
       _pdfBlob=pdf.output('blob');
-      rememberPlace(val('f_place'));   // 実際に報告書にした物件名だけを候補として記憶する
+      rememberPlace(val('f_place'), _yomiBuf);   // 実際に報告書にした物件名だけを読みつきで記憶する
       // PDFができたら「作成」ボタンは隠し、「保存/LINEで送る」だけにする（作成ボタンの二重表示を解消）
       btn.style.display='none';
       document.getElementById('pdfHint').style.display='none';
@@ -583,7 +685,7 @@
      クリアして入力画面に戻る。保存後に出るボタンなのでPDFは保存済み＝確認ダイアログなしで即クリア。 */
   function newReport(){
     document.getElementById('f_place').value='';
-    closeAc();
+    _yomiBuf=''; closeAc();
     document.getElementById('f_notes').value='';
     photos=[];
     works.forEach(w=>w.checked=false);   // 作業内容は項目リストは残し、チェックだけ外す
@@ -638,7 +740,7 @@
   function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
   document.getElementById('f_date').valueAsDate=new Date();
-  renderChecks(); renderNameChips(); renderRecent(); render();
+  renderChecks(); renderNameChips(); renderDueChips(); render();
 </script>
 </body>
 </html>
