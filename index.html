@@ -670,7 +670,9 @@
     const file=new File([_pdfBlob], _pdfName, {type:'application/pdf'});
     try{
       if(navigator.canShare && navigator.canShare({files:[file]})){
-        await navigator.share({ files:[file], title:_pdfName });
+        // title は渡さない。iOSは共有シート経由でtitleをテキストとしてLINEに送るため、
+        // PDFの前に「ファイル名だけのメッセージ」が余分に1通届いてしまう（Androidはtitleを無視するので出ない）
+        await navigator.share({ files:[file] });
       }else{
         const url=URL.createObjectURL(_pdfBlob);
         const a=document.createElement('a'); a.href=url; a.download=_pdfName; a.click();
