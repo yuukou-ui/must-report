@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>共有シート判定テスト</title>
+<style>
+  :root{ color-scheme: light; }
+  body{ margin:0; padding:16px 14px 60px; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+        background:#f5f6f8; color:#1c2430; -webkit-text-size-adjust:100%; }
+  h1{ font-size:19px; margin:0 0 6px; }
+  p.lead{ font-size:14px; line-height:1.7; margin:0 0 18px; color:#42505f; }
+  .card{ background:#fff; border:1px solid #dfe4ea; border-radius:12px; padding:14px; margin-bottom:14px; }
+  .card h2{ font-size:16px; margin:0 0 4px; }
+  .card .note{ font-size:13px; line-height:1.6; color:#5a6675; margin:0 0 12px; }
+  button{ width:100%; padding:15px; font-size:17px; font-weight:600; border:0; border-radius:10px;
+          background:#1f6feb; color:#fff; -webkit-appearance:none; }
+  button:disabled{ background:#9fb4d0; }
+  button.sub{ background:#5a6675; }
+  .res{ font-size:13px; line-height:1.6; margin-top:10px; padding:9px 10px; border-radius:8px;
+        background:#f0f3f7; color:#3a4654; white-space:pre-wrap; word-break:break-all; display:none; }
+  .ok{ color:#0f7a3d; font-weight:600; }
+  .ng{ color:#c02626; font-weight:600; }
+  .env{ font-size:12px; line-height:1.7; color:#5a6675; background:#fff; border:1px solid #dfe4ea;
+        border-radius:12px; padding:12px; margin-bottom:14px; white-space:pre-wrap; word-break:break-all; }
+  ol{ font-size:14px; line-height:1.8; padding-left:22px; margin:0; }
+</style>
+</head>
+<body>
+
+<h1>共有シート判定テスト</h1>
+<p class="lead">
+  下のボタンを<strong>上から順に1つずつ</strong>押して、出てきた共有シートに
+  <strong>LINEのアイコンが出るか／出ないか</strong>だけを見てください。<br>
+  送信はしなくて構いません（キャンセルでOK）。結果をそのまま伝えてもらえれば原因が確定します。
+</p>
+
+<div class="env" id="env">環境情報を取得中…</div>
+
+<div class="card">
+  <h2>テスト1　PDFのみ（＝今の本番と同じ）</h2>
+  <p class="note">files だけを渡す。今この状態でLINEが消えているはず。</p>
+  <button onclick="t1(this)">テスト1を実行</button>
+  <div class="res" id="r1"></div>
+</div>
+
+<div class="card">
+  <h2>テスト2　PDF＋title（＝前の版と同じ）</h2>
+  <p class="note">files に title を付ける。前はここでLINEが出て、余分に1通届いていた。</p>
+  <button onclick="t2(this)">テスト2を実行</button>
+  <div class="res" id="r2"></div>
+</div>
+
+<div class="card">
+  <h2>テスト3　文字だけ（PDFなし）</h2>
+  <p class="note">LINE自体が共有シートに出る状態かの確認。ここでも出ないならLINE／iOS側の問題。</p>
+  <button onclick="t3(this)">テスト3を実行</button>
+  <div class="res" id="r3"></div>
+</div>
+
+<div class="card">
+  <h2>テスト4　画像のみ</h2>
+  <p class="note">「ファイルはダメだが画像ならOK」なのかを切り分ける。</p>
+  <button onclick="t4(this)">テスト4を実行</button>
+  <div class="res" id="r4"></div>
+</div>
+
+<div class="card">
+  <h2>テスト5　PDFをファイルに保存</h2>
+  <p class="note">保存した後、<strong>ファイルApp</strong>からそのPDFを共有 →
+     そこにLINEが出るかも見てください（iOS標準の共有でどうなるかの基準になります）。</p>
+  <button class="sub" onclick="t5(this)">PDFを保存</button>
+  <div class="res" id="r5"></div>
+</div>
+
+<div class="card">
+  <h2>確認してほしいこと</h2>
+  <ol>
+    <li>テスト1〜4それぞれで <strong>LINEアイコンが出たか</strong></li>
+    <li>アプリの並びを<strong>左右にスクロール</strong>した奥にLINEがいないか</li>
+    <li>並びの右端「<strong>その他</strong>」を開いた一覧にLINEがあり、<strong>オフになっていないか</strong></li>
+  </ol>
+</div>
+
+<script>
+/* 外部ライブラリなしで、正しいxrefを持つ最小PDFを組み立てる（全てASCIIなので文字数＝バイト数） */
+function makePdfBlob(){
+  const content = "BT /F1 24 Tf 60 740 Td (LINE share test) Tj ET";
+  const objs = [
+    "<</Type/Catalog/Pages 2 0 R>>",
+    "<</Type/Pages/Kids[3 0 R]/Count 1>>",
+    "<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>",
+    "<</Length " + content.length + ">>\nstream\n" + content + "\nendstream",
+    "<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>"
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [];
+  objs.forEach(function(o, i){ offsets.push(pdf.length); pdf += (i+1) + " 0 obj\n" + o + "\nendobj\n"; });
+  const xref = pdf.length;
+  pdf += "xref\n0 " + (objs.length+1) + "\n0000000000 65535 f \n";
+  offsets.forEach(function(off){ pdf += String(off).padStart(10,'0') + " 00000 n \n"; });
+  pdf += "trailer\n<</Size " + (objs.length+1) + "/Root 1 0 R>>\nstartxref\n" + xref + "\n%%EOF";
+  return new Blob([pdf], {type:'application/pdf'});
+}
+
+function pdfFile(){ return new File([makePdfBlob()], "共有テスト_20260815.pdf", {type:'application/pdf'}); }
+
+function imgFile(){
+  return new Promise(function(resolve){
+    const c = document.createElement('canvas'); c.width = 600; c.height = 450;
+    const g = c.getContext('2d');
+    g.fillStyle = '#1f6feb'; g.fillRect(0,0,600,450);
+    g.fillStyle = '#fff'; g.font = 'bold 40px sans-serif'; g.fillText('share test', 150, 240);
+    c.toBlob(function(b){ resolve(new File([b], "共有テスト.png", {type:'image/png'})); }, 'image/png');
+  });
+}
+
+function show(id, html){ const e = document.getElementById(id); e.innerHTML = html; e.style.display='block'; }
+
+async function run(id, data, label){
+  if(!navigator.share){ show(id, '<span class="ng">この端末は navigator.share 非対応</span>'); return; }
+  const can = navigator.canShare ? navigator.canShare(data) : '(canShareなし)';
+  try{
+    await navigator.share(data);
+    show(id, label + '\ncanShare: ' + can + '\n<span class="ok">共有シートを開いた（送信 or キャンセル完了）</span>');
+  }catch(e){
+    const nm = (e && e.name) || '';
+    if(nm === 'AbortError'){
+      show(id, label + '\ncanShare: ' + can + '\n<span class="ok">共有シートを開いた（キャンセル）</span>');
+    }else{
+      show(id, label + '\ncanShare: ' + can + '\n<span class="ng">エラー: ' + nm + ' / ' + ((e && e.message) || e) + '</span>');
+    }
+  }
+}
+
+function t1(){ const f = pdfFile(); run('r1', { files:[f] }, 'files のみ'); }
+function t2(){ const f = pdfFile(); run('r2', { files:[f], title:f.name }, 'files + title'); }
+function t3(){ run('r3', { text:'共有テスト' }, 'text のみ'); }
+async function t4(btn){
+  btn.disabled = true;
+  const f = await imgFile();          // ここは非同期だが、iOSはユーザー操作直後なら通ることが多い
+  btn.disabled = false;
+  run('r4', { files:[f] }, '画像 files のみ');
+}
+function t5(){
+  const url = URL.createObjectURL(makePdfBlob());
+  const a = document.createElement('a'); a.href = url; a.download = "共有テスト_20260815.pdf"; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 10000);
+  show('r5', 'ダウンロードを実行しました。ファイルAppから共有してLINEが出るか確認してください。');
+}
+
+(function(){
+  const f = pdfFile();
+  document.getElementById('env').textContent =
+    'navigator.share: ' + (!!navigator.share) + '\n' +
+    'navigator.canShare: ' + (!!navigator.canShare) + '\n' +
+    'canShare(PDF): ' + (navigator.canShare ? navigator.canShare({files:[f]}) : '-') + '\n' +
+    'canShare(PDF+title): ' + (navigator.canShare ? navigator.canShare({files:[f], title:f.name}) : '-') + '\n' +
+    'secureContext: ' + window.isSecureContext + '\n' +
+    'UA: ' + navigator.userAgent;
+})();
+</script>
+</body>
+</html>

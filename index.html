@@ -670,9 +670,11 @@
     const file=new File([_pdfBlob], _pdfName, {type:'application/pdf'});
     try{
       if(navigator.canShare && navigator.canShare({files:[file]})){
-        // title は渡さない。iOSは共有シート経由でtitleをテキストとしてLINEに送るため、
-        // PDFの前に「ファイル名だけのメッセージ」が余分に1通届いてしまう（Androidはtitleを無視するので出ない）
-        await navigator.share({ files:[file] });
+        // title は一旦戻した（2026-08-15）。titleを外したところ、iPhoneの共有シートから
+        // LINEのアイコン自体が消えて送信できなくなったため。titleがあるとiOSでは
+        // 「ファイル名だけのメッセージ」が余分に1通届くが、送れないより実害が小さいのでこちらを優先。
+        // 原因の切り分け中： /share-test.html で実機の挙動を確認する
+        await navigator.share({ files:[file], title:_pdfName });
       }else{
         const url=URL.createObjectURL(_pdfBlob);
         const a=document.createElement('a'); a.href=url; a.download=_pdfName; a.click();
