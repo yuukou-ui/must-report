@@ -73,6 +73,11 @@
   .thumb .del{ position:absolute; top:4px; right:4px; width:24px; height:24px; border:none; border-radius:50%;
     background:rgba(20,49,94,.85); color:#fff; font-size:14px; cursor:pointer; }
   .hint-note{ font-size:12px; color:var(--muted); margin:8px 2px 0; }
+  /* 写真の取り込み状況を必ず画面に出す（スマホはコンソールが見えないため） */
+  .photo-msg{ font-size:13px; line-height:1.6; margin:8px 2px 0; padding:8px 10px; border-radius:8px;
+              background:#fff7ed; border:1px solid #fed7aa; color:#7c2d12; display:none; }
+  .photo-msg.show{ display:block; }
+  .photo-msg.ok{ background:#f0fdf4; border-color:#bbf7d0; color:#14532d; }
 
   /* 物件名サジェスト：入力欄に重ねて出す（画面の高さは変わらない） */
   .fld{ display:block; margin-bottom:14px; }
@@ -104,6 +109,12 @@
 
   /* ===== プレビュー：実物レイアウト＋細線スパイス（A4 1枚） ===== */
   #previewView{ display:none; }
+  /* 入力の自動保存を知らせる帯。ブラウザが落ちて戻された時にここで気づける */
+  .draft-note{ display:none; align-items:center; gap:10px; margin-bottom:12px; padding:10px 12px;
+               border-radius:10px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e3a8a; font-size:13px; line-height:1.6; }
+  .draft-note.show{ display:flex; }
+  .draft-note button{ margin-left:auto; flex:none; border:1px solid #bfdbfe; background:#fff; color:#1e3a8a;
+                      border-radius:8px; padding:5px 10px; font-size:12px; cursor:pointer; }
   /* A4を実寸(794px)で組み、スマホでは縮小して画面幅にフィットさせる */
   .sheet-scale{ overflow:hidden; margin:0 auto; }
   /* A4の縦横比(794:1123)に固定。中身を縦に積み、写真エリアが残りスペースを埋める＝常に締まった1枚 */
@@ -207,6 +218,12 @@
 <!-- ============ 入力 ============ -->
 <div id="inputView" class="wrap">
 
+  <div class="draft-note" id="draftNote">
+    <span id="draftNoteText"></span>
+    <button type="button" onclick="clearDraft(true)">消す</button>
+  </div>
+
+
   <div class="card">
     <h2><span class="num">1</span>基本情報</h2>
     <div class="fld">
@@ -248,8 +265,10 @@
       <input type="file" id="photoInput" accept="image/*" multiple onchange="addPhotos(this)">
     </label>
     <p class="photo-count">登録中：<b id="photoNum">0</b> / 8 枚　<span id="spareNote"></span></p>
+    <p class="photo-msg" id="photoMsg"></p>
     <div class="thumbs" id="thumbs"></div>
-    <p class="hint-note">8枚を超える分は自動で受け付けません。8枚目は報告書で「予備」と表示されます。</p>
+    <p class="hint-note">8枚を超える分は自動で受け付けません。8枚目は報告書で「予備」と表示されます。<br>
+      写真が入らないときは、いちど3〜4枚ずつに分けて選んでみてください。</p>
   </div>
 
 </div>
@@ -309,7 +328,8 @@
   function loadWorks(){ try{ return (JSON.parse(localStorage.getItem('workItems')||'[]')).map(n=>({name:n,checked:false})); }catch(e){ return []; } }
   function storeWorks(){ try{ localStorage.setItem('workItems', JSON.stringify(works.map(w=>w.name))); }catch(e){} }
   let works = loadWorks();
-  let photos = [];
+  let photos = [];        // 報告書に使う画像（長辺1100px）
+  let photoThumbs = [];   // 入力画面のサムネ用（長辺320px）。展開後のメモリが約1/12になる
 
   /* 作業内容（定番タップ） */
   function renderChecks(){
@@ -323,51 +343,154 @@
       box.appendChild(div);
     });
   }
-  function toggleWork(i,c){ works[i].checked=c; renderChecks(); render(); }
+  function toggleWork(i,c){ works[i].checked=c; renderChecks(); render(); saveDraft(); }
   function delWork(i){ works.splice(i,1); storeWorks(); renderChecks(); render(); }
   function addWork(){
     const inp=document.getElementById('newWork'); const name=inp.value.trim(); if(!name)return;
     works.push({name,checked:true}); storeWorks(); inp.value=''; renderChecks(); render();
   }
 
-  /* 写真（取り込み時に自動圧縮：長辺1400px・JPEG。スマホ写真が数MBあっても軽くなる） */
-  function addPhotos(input){
-    const files=[...input.files]; const room=MAX_PHOTOS-photos.length;
-    if(room<=0){ alert('写真は最大8枚までです。'); input.value=''; return; }
-    const take=files.slice(0,room);
-    if(files.length>room) alert('8枚を超えるため、先頭の'+room+'枚のみ登録しました。');
-    const base=photos.length;
-    take.forEach(()=>photos.push(null));   // 選んだ順番を保つため先に枠を確保
-    let pending=take.length;
-    take.forEach((file,idx)=>{ shrinkPhoto(file, d=>{
-      photos[base+idx]=d;
-      if(--pending===0){ photos=photos.filter(p=>p); renderThumbs(); render(); }
-    }); });
-    input.value='';
+  /* ===== 写真の取り込み =====
+     取り込み時に長辺1400px・JPEGへ自動圧縮する。ここで大事なのは「1枚ずつ順番に」処理すること。
+     8枚をいっぺんに展開すると、1枚あたり数十MBの展開画像がブラウザのメモリを一気に食い、
+     iPhoneのブラウザはタブごと落ちて再読み込みする（＝何も選ばれていない元の画面に戻って見える）。
+     読めなかった写真は黙って捨てず、必ず画面に理由を出す。 */
+  const photoMsgEl=()=>document.getElementById('photoMsg');
+  function photoMsg(text,ok){
+    const el=photoMsgEl(); if(!el) return;
+    el.textContent=text||'';
+    el.className='photo-msg'+(text?' show':'')+(ok?' ok':'');
   }
-  function shrinkPhoto(file, cb){
-    const r=new FileReader();
-    r.onload=e=>{
+  let _photoBusy=false;
+  async function addPhotos(input){
+    const files=[...input.files];
+    input.value='';                      // 同じ写真をもう一度選び直せるよう、先に空にしておく
+    if(_photoBusy){ photoMsg('前の写真を読み込み中です。終わってからもう一度選んでください。'); return; }
+    if(!files.length){
+      photoMsg('写真を受け取れませんでした（0枚）。カメラアプリで撮った形式が原因のことがあります。'
+              +'枚数を減らして選び直すか、写真アプリでその写真を開いて「編集→完了」または「複製」してから選んでみてください。');
+      return;
+    }
+    const room=MAX_PHOTOS-photos.length;
+    if(room<=0){ photoMsg('写真は最大8枚までです。'); return; }
+    const take=files.slice(0,room);
+    const over=files.length-take.length;
+
+    _photoBusy=true;
+    let ng=0; const ngList=[];
+    for(let i=0;i<take.length;i++){
+      photoMsg('読み込み中… '+(i+1)+' / '+take.length+' 枚目');
+      let d=null, t=null;
+      try{ d=await shrinkPhoto(take[i], 1100, 0.82); }catch(e){ d=null; }
+      if(!d){
+        // 1回だけ間を置いて再挑戦。展開に失敗する原因の多くは一時的なメモリ不足で、
+        // 少し待つとブラウザが片付けを済ませて通ることがある
+        photoMsg('読み込み中… '+(i+1)+' / '+take.length+' 枚目（もう一度試しています）');
+        await new Promise(r=>setTimeout(r,700));
+        try{ d=await shrinkPhoto(take[i], 1100, 0.82); }catch(e){ d=null; }
+      }
+      // サムネは縮小済みの画像から作る。元の大きな写真をもう一度展開しないで済む
+      if(d){ try{ t=await shrinkFromData(d, 320, 0.7); }catch(e){ t=null; } }
+      if(d){ photos.push(d); photoThumbs.push(t||d); }
+      else { ng++; ngList.push(fileInfo(take[i])); }
+      renderThumbs();
+      await new Promise(r=>setTimeout(r,250));  // 1枚ごとに息継ぎ。ブラウザにメモリの後片付けをさせる
+    }
+    _photoBusy=false;
+    render();
+
+    const okCount=take.length-ng;
+    let m='';
+    if(over>0) m+='8枚を超える'+over+'枚は登録していません。';
+    if(ng>0)   m+=ng+'枚は読み込めませんでした：'+ngList.join(' / ')+'。'
+                 +'写真アプリでその写真を開いて「編集→完了」または「複製」をしてから選び直すと入ることがあります。';
+    if(m) photoMsg(m); else photoMsg(okCount+'枚を登録しました。', true);
+  }
+
+  /* すでに縮めた画像から、さらに小さいサムネを作る。元の大きな写真を展開し直さずに済む */
+  function shrinkFromData(dataUrl, MAX, q){
+    return new Promise(resolve=>{
       const img=new Image();
       img.onload=()=>{
-        const MAX=1400;
-        const s=Math.min(1, MAX/Math.max(img.width,img.height));
-        const w=Math.round(img.width*s), h=Math.round(img.height*s);
+        const s=Math.min(1, MAX/Math.max(img.naturalWidth,img.naturalHeight));
+        const w=Math.max(1,Math.round(img.naturalWidth*s)), h=Math.max(1,Math.round(img.naturalHeight*s));
         const c=document.createElement('canvas'); c.width=w; c.height=h;
-        c.getContext('2d').drawImage(img,0,0,w,h);
-        cb(c.toDataURL('image/jpeg',0.82));
+        let out=null;
+        try{ c.getContext('2d').drawImage(img,0,0,w,h); out=c.toDataURL('image/jpeg',q); }catch(e){ out=null; }
+        c.width=1; c.height=1;
+        resolve(out);
       };
-      img.onerror=()=>cb(e.target.result);  // 描画できない形式は元データのまま使う
-      img.src=e.target.result;
-    };
-    r.onerror=()=>cb(null);
-    r.readAsDataURL(file);
+      img.onerror=()=>resolve(null);
+      img.src=dataUrl;
+    });
   }
-  function delPhoto(i){ photos.splice(i,1); renderThumbs(); render(); }
+
+  /* 読み込めなかった写真を特定するための手がかり。名前・大きさ・形式を並べる */
+  function fileInfo(f){
+    const mb=f && f.size ? (f.size/1048576).toFixed(1)+'MB' : 'サイズ不明';
+    const ty=(f && f.type) ? f.type : '形式不明';
+    return (f && f.name ? f.name : '名前不明')+'（'+mb+'／'+ty+'）';
+  }
+
+  /* 1枚を縮小してJPEGのデータに変える。軽い方法から順に段階的に試す */
+  function shrinkPhoto(file, MAX, q){
+    return new Promise(resolve=>{
+      const draw=(src,w0,h0,done)=>{
+        if(!w0||!h0){ done(null); return; }
+        const s=Math.min(1, MAX/Math.max(w0,h0));
+        const w=Math.max(1,Math.round(w0*s)), h=Math.max(1,Math.round(h0*s));
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        let out=null;
+        try{ c.getContext('2d').drawImage(src,0,0,w,h); out=c.toDataURL('image/jpeg',q); }catch(e){ out=null; }
+        c.width=1; c.height=1;            // 使い終わったcanvasを最小化してメモリを返す
+        done(out);
+      };
+      // 1) createImageBitmap：元ファイルを丸ごとコピーしないので一番メモリに優しい。
+      //    さらに大きな写真では「展開する時点で縮めて」と頼む。4080x3060の写真なら
+      //    展開量が約50MB→約6MBに減り、ここが今回の詰まりどころだった
+      if(window.createImageBitmap){
+        tryBitmap(file.size>1048576 ? {resizeWidth:MAX, resizeQuality:'high'} : null);
+      } else viaObjectURL();
+      function tryBitmap(opt){
+        let p=null;
+        try{ p = opt ? createImageBitmap(file,opt) : createImageBitmap(file); }catch(e){ p=null; }
+        if(!p){ viaObjectURL(); return; }
+        p.then(bmp=>{
+          draw(bmp,bmp.width,bmp.height,d=>{
+            try{ bmp.close(); }catch(e){}
+            if(d) resolve(d); else viaObjectURL();      // 描けなかった時は次の手段へ
+          });
+        }).catch(()=>{ if(opt) tryBitmap(null); else viaObjectURL(); });  // 縮小指定が使えない環境向け
+      }
+      // 2) 一時URL＋<img>：data URLと違い文字列に展開しないぶん軽い
+      function viaObjectURL(){
+        let url;
+        try{ url=URL.createObjectURL(file); }catch(e){ viaFileReader(); return; }
+        const img=new Image();
+        img.onload =()=>draw(img,img.naturalWidth,img.naturalHeight,d=>{ URL.revokeObjectURL(url); resolve(d); });
+        img.onerror=()=>{ URL.revokeObjectURL(url); viaFileReader(); };
+        img.src=url;
+      }
+      // 3) 最後の砦：昔ながらのFileReader方式。端末によってはこれだけ通る。
+      //    メモリを食うので普段は使わず、上の2つが両方だめだった1枚にだけ使う
+      function viaFileReader(){
+        const r=new FileReader();
+        r.onload=e=>{
+          const img=new Image();
+          img.onload =()=>draw(img,img.naturalWidth,img.naturalHeight,resolve);
+          img.onerror=()=>resolve(null);      // ここまで来て描けない＝ブラウザが対応しない形式
+          img.src=e.target.result;
+        };
+        r.onerror=()=>resolve(null);
+        try{ r.readAsDataURL(file); }catch(e){ resolve(null); }
+      }
+    });
+  }
+  function delPhoto(i){ photos.splice(i,1); photoThumbs.splice(i,1); renderThumbs(); render(); }
   function renderThumbs(){
     document.getElementById('photoNum').textContent=photos.length;
     document.getElementById('spareNote').textContent = photos.length>=8 ? '（8枚目＝予備）' : '';
-    document.getElementById('thumbs').innerHTML=photos.map((d,i)=>
+    document.getElementById('thumbs').innerHTML=photoThumbs.map((d,i)=>
       `<div class="thumb"><img src="${d}"><button class="del" onclick="delPhoto(${i})">×</button></div>`).join('');
   }
 
@@ -691,7 +814,9 @@
     document.getElementById('f_place').value='';
     _yomiBuf=''; closeAc();
     document.getElementById('f_notes').value='';
-    photos=[];
+    photos=[]; photoThumbs=[];
+    photoMsg('');
+    clearDraft(true);            // 1件終わったので控えは破棄
     works.forEach(w=>w.checked=false);   // 作業内容は項目リストは残し、チェックだけ外す
     renderChecks();
     renderThumbs();
@@ -740,11 +865,52 @@
       : `<div class="empty-ph">写真が未登録です</div>`;
   }
 
+  /* ===== 入力の自動保存 =====
+     写真の選択中にブラウザがメモリ不足でタブを落とすと、戻ってきた時に画面が初期化される。
+     打ち込んだ内容が消えないよう、文字の入力は常に端末に控えておき、復元したら帯で知らせる。
+     （写真は容量が大きく保存できないため、復元の対象外） */
+  const LS_DRAFT='must_draft';
+  let _draftTimer=null;
+  function draftData(){
+    return { place:val('f_place'), date:val('f_date'), worker:val('f_worker'), notes:val('f_notes'),
+             checked:works.filter(w=>w.checked).map(w=>w.name), t:Date.now() };
+  }
+  function saveDraft(){
+    const d=draftData();
+    if(!d.place && !d.notes && !d.checked.length){ try{ localStorage.removeItem(LS_DRAFT); }catch(e){} return; }
+    try{ localStorage.setItem(LS_DRAFT, JSON.stringify(d)); }catch(e){}
+  }
+  function saveDraftSoon(){ clearTimeout(_draftTimer); _draftTimer=setTimeout(saveDraft,400); }
+  function clearDraft(hideNote){
+    clearTimeout(_draftTimer);
+    try{ localStorage.removeItem(LS_DRAFT); }catch(e){}
+    if(hideNote) document.getElementById('draftNote').classList.remove('show');
+  }
+  function restoreDraft(){
+    let d=null;
+    try{ d=JSON.parse(localStorage.getItem(LS_DRAFT)||'null'); }catch(e){ d=null; }
+    if(!d) return;
+    if(Date.now()-(d.t||0) > 12*60*60*1000){ clearDraft(); return; }   // 半日以上前の控えは使わない
+    if(d.place) document.getElementById('f_place').value=d.place;
+    if(d.date)  document.getElementById('f_date').value=d.date;
+    if(d.worker)document.getElementById('f_worker').value=d.worker;
+    if(d.notes) document.getElementById('f_notes').value=d.notes;
+    if(d.checked&&d.checked.length) works.forEach(w=>{ if(d.checked.includes(w.name)) w.checked=true; });
+    const mm=Math.round((Date.now()-(d.t||Date.now()))/60000);
+    document.getElementById('draftNoteText').textContent =
+      '前回の入力を復元しました（'+(mm<1?'たった今':mm+'分前')+'の内容）。写真は復元できないので選び直してください。';
+    document.getElementById('draftNote').classList.add('show');
+  }
+
   function val(id){ const e=document.getElementById(id); return e?e.value:''; }
   function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
   document.getElementById('f_date').valueAsDate=new Date();
-  renderChecks(); renderNameChips(); renderDueChips(); render();
+  renderNameChips(); renderDueChips();
+  restoreDraft();                       // 落ちて戻された時のために、まず控えを戻す
+  renderChecks(); render();
+  document.getElementById('inputView').addEventListener('input', saveDraftSoon);
+  document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveDraft(); });  // 写真を選びに離れる直前に確実に控える
 </script>
 </body>
 </html>
