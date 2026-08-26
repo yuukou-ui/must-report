@@ -129,6 +129,28 @@
   .search-box input{ background:#fafbfd; }
 
   /* 新規物件の取引先を聞くモーダル */
+  .btn-reset{ display:block; width:100%; margin-top:12px; padding:11px; border-radius:10px; cursor:pointer;
+    border:1px solid #fca5a5; background:#fff5f5; color:#b91c1c; font-size:13.5px; font-weight:700; }
+  .btn-reset:active{ background:#fee2e2; }
+  .savedir{ display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:0 0 12px; padding:10px 12px;
+    background:var(--bg2); border:1px solid var(--line); border-radius:10px; font-size:13px; }
+  .savedir .sd-lbl{ font-weight:700; color:var(--muted); flex:none; }
+  .savedir .sd-val{ flex:1; min-width:120px; overflow-wrap:anywhere; }
+  .savedir button{ flex:none; border:1px solid var(--line); background:#fff; border-radius:8px;
+    padding:6px 10px; font-size:12.5px; cursor:pointer; }
+  .savedir button:active{ background:var(--bg2); }
+  .m-same{ background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:12px; margin:10px 0 4px; }
+  .m-same .ms-q{ font-size:14px; line-height:1.7; margin:0 0 10px; color:#7c2d12; }
+  .m-same .ms-q b{ color:#b3500a; }
+  .m-same button{ display:block; width:100%; margin-top:8px; padding:11px; border-radius:9px;
+    font-size:14px; font-weight:700; cursor:pointer; }
+  .m-same .ms-yes{ border:none; background:var(--orange2); color:#fff; }
+  .m-same .ms-no{ border:1px solid var(--line); background:#fff; color:var(--ink); }
+  .miss-row{ display:flex; align-items:center; gap:6px; padding:3px 0; }
+  .miss-row .mr-name{ flex:1; min-width:0; overflow-wrap:anywhere; }
+  .miss-row button{ flex:none; border:1px solid #e2c98a; background:#fffdf5; color:#8a6400;
+    border-radius:7px; padding:5px 8px; font-size:11.5px; cursor:pointer; white-space:nowrap; }
+  .miss-row button:active{ background:#fff4d6; }
   .modal-bg{ position:fixed; inset:0; background:rgba(20,30,50,.55); display:none; align-items:center; justify-content:center; padding:18px; z-index:50; }
   .modal{ background:#fff; border-radius:16px; padding:18px; max-width:420px; width:100%; max-height:86vh; overflow:auto; }
   .modal h3{ margin:0 0 6px; color:var(--navy); font-size:16px; }
@@ -193,6 +215,7 @@
     </label>
     <div class="miss-warn" id="missWarn" style="display:none"></div>
     <p class="hint">取り込むと自動で清掃日順に並びます。ボタンで並び替え、↑↓で手動調整もできます。この順番どおりに結合されます。</p>
+    <button class="btn-reset" id="btnReset" onclick="resetAll()" style="display:none">🔄 最初からやり直す（取り込んだPDFを全部消す）</button>
   </div>
 
   <div class="card">
@@ -232,6 +255,12 @@
       <p id="mixMsg"></p>
       <button class="mix-force" id="mixForce" onclick="forceMerge()">⚠️ それでも結合する</button>
     </div>
+    <div class="savedir" id="saveDirWrap">
+      <span class="sd-lbl">保存先</span>
+      <span class="sd-val" id="sdVal">未設定（ブラウザのダウンロード先）</span>
+      <button id="sdPick" onclick="pickSaveDir()">フォルダを選ぶ</button>
+      <button id="sdClear" onclick="clearSaveDir()" style="display:none">解除</button>
+    </div>
     <button class="btn-merge" id="btnMerge" onclick="merge()" disabled>📚 結合してダウンロード</button>
     <div class="status" id="status"></div>
   </div>
@@ -256,6 +285,18 @@
     <h3 id="mTitle">新しい物件です</h3>
     <p class="m-prop" id="mProp"></p>
     <p class="m-msg" id="mMsg">この物件を取り込みますか？取引先と清掃頻度を選んでください。</p>
+    <!-- 似た名前が登録済みのときだけ出る。ここで「同じ」と答えれば新規登録せずにまとめる -->
+    <div class="m-same" id="mSame" style="display:none">
+      <p class="ms-q">登録ずみの <b id="msName"></b> と同じ物件ではありませんか？</p>
+      <button class="ms-yes" onclick="answerSame(true)">はい、同じ物件です（まとめる）</button>
+      <button class="ms-no" onclick="answerSame(false)">いいえ、別の物件です</button>
+    </div>
+    <!-- 「まとめる」＝この名前を、どの物件の別名にするか選ぶ -->
+    <div class="m-merge" id="mMerge" style="display:none">
+      <p class="m-sub">どの物件と同じですか？</p>
+      <div class="m-clients" id="mMergeList"></div>
+    </div>
+    <div id="mNormal">
     <p class="m-sel" id="mSelClient" style="display:none"></p>
     <p class="m-sub" id="mSubExisting">登録済みの取引先から選ぶ</p>
     <div class="m-clients" id="mClients"></div>
@@ -268,6 +309,7 @@
     <div class="m-freq" id="mFreq">
       <button data-f="2" onclick="setFreq('2')">月2回</button>
       <button data-f="1" onclick="setFreq('1')">月1回</button>
+    </div>
     </div>
     <button class="m-confirm" id="mConfirm" onclick="confirmModal()" disabled>取り込む</button>
     <button class="m-skip" id="mSkip" onclick="resolvePick(null)">取り込まない（除外）</button>
@@ -298,25 +340,110 @@
   /* ===== 表記ゆれ対策：照合だけ正規化する（表示名は登録された表記のまま） =====
      半角/全角の数字・英字、空白の有無、ハイフンの種類、中黒などが違っても同じ物件として扱う。
      報告書ツールの normKey と同じ規則にしてあるので、両ツールの判定がずれない。 */
+  /* ===== 番号の書き分けをそろえる =====
+     同じ建物でも「グレース5」「グレースV」「グレースⅤ」「グレース五」と書かれる。
+     全部おなじ 5 として扱えるよう、番号らしき部分を算用数字に直す。
+     ただし語の一部を壊さないよう、英字は「ひとかたまり全部がローマ数字の時だけ」直す
+     （ivy館 → そのまま、mixiビル → そのまま、グレースv → グレース5）。 */
+  const UNI_ROMAN = {'Ⅰ':1,'Ⅱ':2,'Ⅲ':3,'Ⅳ':4,'Ⅴ':5,'Ⅵ':6,'Ⅶ':7,'Ⅷ':8,'Ⅸ':9,'Ⅹ':10,'Ⅺ':11,'Ⅻ':12,
+                     'ⅰ':1,'ⅱ':2,'ⅲ':3,'ⅳ':4,'ⅴ':5,'ⅵ':6,'ⅶ':7,'ⅷ':8,'ⅸ':9,'ⅹ':10,'ⅺ':11,'ⅻ':12};
+  function intToRoman(n){
+    const tbl=[[10,'x'],[9,'ix'],[5,'v'],[4,'iv'],[1,'i']];
+    let out=''; for(const [v,r] of tbl){ while(n>=v){ out+=r; n-=v; } } return out;
+  }
+  function romanToInt(r){
+    const v={i:1,v:5,x:10}; let n=0;
+    for(let i=0;i<r.length;i++){ const c=v[r[i]], nx=v[r[i+1]]||0; n += (nx>c ? -c : c); }
+    return (n>0 && n<=39 && intToRoman(n)===r) ? n : 0;   // 正しい書き方のものだけ採用（iiii や vv は数字とみなさない）
+  }
+  const KANJI_NUM={'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9};
+  function kanjiToInt(k){                                  // 一〜九・十・十一〜九十九
+    if(KANJI_NUM[k]) return KANJI_NUM[k];
+    if(k==='十') return 10;
+    let m=k.match(/^([一二三四五六七八九])?十([一二三四五六七八九])?$/);
+    if(m) return (m[1]?KANJI_NUM[m[1]]:1)*10 + (m[2]?KANJI_NUM[m[2]]:0);
+    return 0;
+  }
   function normKey(s){
     let t=String(s||'');
+    // ローマ数字（Ⅴ）は NFKC でラテン文字 V に化けてしまうので、その前に算用数字へ直す
+    t=t.replace(/[Ⅰ-Ⅻⅰ-ⅻ]/g, c=>String(UNI_ROMAN[c]||c));
     try{ t=t.normalize('NFKC'); }catch(e){}     // 全角英数→半角、半角カナ→全角
-    return t.toLowerCase()
+    t=t.toLowerCase()
       .replace(/[\s　]/g,'')                    // 空白（半角・全角）は無視
       .replace(/[‐‑‒–—―−ｰ]/g,'-')             // ハイフン類を統一
       .replace(/(\d)ー/g,'$1-')                 // 数字のあとの長音符はハイフンの打ち間違いとみなす
-      .replace(/[・･,、.。]/g,'');               // 中黒・句読点は無視
+      .replace(/[・･,、.。]/g,'')                // 中黒・句読点は無視
+      .replace(/[ぁ-ゖ]/g, c=>String.fromCharCode(c.charCodeAt(0)+0x60));  // ひらがな→カタカナ
+    t=t.replace(/[a-z]+/g, w=>{ const v=romanToInt(w); return v?String(v):w; });      // V → 5（語全体がローマ数字の時だけ）
+    t=t.replace(/[一二三四五六七八九十]+/g, w=>{ const v=kanjiToInt(w); return v?String(v):w; });  // 五 → 5
+    return t;
   }
+
   function normIndex(){                          // 照合キー → 登録ずみの正式表記
     const idx={};
     Object.keys(propMap).forEach(p=>{ const k=normKey(p); if(k && !(k in idx)) idx[k]=p; });
     return idx;
   }
+  /* ===== 別名（エイリアス） =====
+     normKey で吸収しきれない打ち間違い（「文京マンション」と「文京マンシヨン」など）を、
+     利用者が一度「同じ物件です」と答えたら覚えておき、次回から自動で寄せる。
+     形は { 照合キー: 正式な物件名 }。正式名そのものは propMap 側で管理する。 */
+  const LS_ALIAS = 'must_property_alias';
+  function loadAlias(){ try{ return JSON.parse(localStorage.getItem(LS_ALIAS)) || {}; }catch(e){ return {}; } }
+  let aliasMap = loadAlias();
+  function saveAlias(){ persist(LS_ALIAS, aliasMap); }
+  function addAlias(variant, canonical){
+    const k=normKey(variant);
+    if(!k || !canonical || k===normKey(canonical)) return;
+    aliasMap[k]=canonical; saveAlias();
+  }
   // 取り込んだ物件名を、登録ずみの表記に寄せる（別物件として二重登録されるのを防ぐ）
   function canonProp(prop){
     if(!prop) return prop;
     if(Object.prototype.hasOwnProperty.call(propMap, prop)) return prop;
-    return normIndex()[normKey(prop)] || prop;
+    const k=normKey(prop);
+    if(aliasMap[k] && Object.prototype.hasOwnProperty.call(propMap, aliasMap[k])) return aliasMap[k];
+    return normIndex()[k] || prop;
+  }
+
+  /* ===== 似た名前をさがす =====
+     完全一致でも別名でもない新しい名前が来たとき、登録ずみの中に「打ち間違いでは？」という
+     ものがあれば拾う。自動で寄せてしまうと本当に別の物件を潰すので、必ず画面で確認を取る。 */
+  function editDistance(a,b){                      // レーベンシュタイン距離（何文字直せば同じになるか）
+    if(a===b) return 0;
+    const m=a.length, n=b.length;
+    if(!m) return n; if(!n) return m;
+    let prev=Array.from({length:n+1},(_,j)=>j), cur=new Array(n+1);
+    for(let i=1;i<=m;i++){
+      cur[0]=i;
+      for(let j=1;j<=n;j++){
+        cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1));
+      }
+      [prev,cur]=[cur,prev];
+    }
+    return prev[n];
+  }
+  /* 番号や棟記号だけを取り出した印。「A棟」と「B棟」、「第1」と「第2」を
+     打ち間違い扱いしないための歯止め。ここが違えば別物件と決めつけてよい。
+     normKey が V→5・五→5 まで直したあとに使うので、書き方の違いでズレることはない */
+  function enumSig(k){ return (k.match(/\d+|[a-z]+/g)||[]).join(','); }
+  function findSimilar(prop){
+    const k=normKey(prop);
+    if(!k) return null;
+    const sig=enumSig(k);
+    let best=null, bestD=Infinity;
+    Object.keys(propMap).forEach(reg=>{
+      const rk=normKey(reg);
+      if(!rk || rk===k) return;
+      if(enumSig(rk)!==sig) return;                 // 番号・棟記号が違う＝別物件（A棟/B棟、第1/第3）
+      // 長さが大きく違うものも別物件とみなす
+      if(Math.abs(rk.length-k.length) > 2) return;
+      const d=editDistance(k,rk);
+      const limit = k.length<=4 ? 1 : (k.length<=8 ? 2 : 3);   // 短い名前ほど厳しく見る
+      if(d<=limit && d<bestD){ bestD=d; best=reg; }
+    });
+    return best;
   }
 
   /* ===== 物件ごとの清掃頻度（'2'=月2回 / '1'=月1回）。未登録の既存物件は安全側で月2回扱い ===== */
@@ -371,11 +498,19 @@
       const canon = canonProp(meta.prop);              // 半角/全角違い等は登録ずみの表記に統一
       if(canon !== meta.prop){ fixed.push(`${meta.prop} → ${canon}`); meta.prop = canon; }
       let client = lookupClient(meta.prop);            // 既知の物件なら取引先を自動割り当て
-      if(client === null){                              // 新しい物件 → 取り込むか・取引先を確認
-        const res = await resolveNewProperty(meta.prop);
+      if(client === null){                              // 新しい物件 → まず打ち間違いを疑い、次に取引先を確認
+        const near = findSimilar(meta.prop);
+        const res = await resolveNewProperty(meta.prop, 'new', null, near);
         if(res.skip) continue;                          // 「取り込まない」→ このPDFは除外
-        client = res.client;
-        if(meta.prop){ propMap[meta.prop] = client; freqMap[meta.prop] = res.freq; saveMap(); saveFreq(); }   // 物件名が取れたものだけ記憶
+        if(res.alias){                                  // 「同じ物件です」＝登録ずみの名前に寄せる
+          addAlias(meta.prop, res.alias);
+          fixed.push(`${meta.prop} → ${res.alias}`);
+          meta.prop = res.alias;
+          client = lookupClient(res.alias);
+        }else{
+          client = res.client;
+          if(meta.prop){ propMap[meta.prop] = client; freqMap[meta.prop] = res.freq; saveMap(); saveFreq(); }   // 物件名が取れたものだけ記憶
+        }
       }
       items.push({ name:f.name, bytes, ...meta, client });
     }
@@ -390,6 +525,20 @@
     }
   }
 
+  /* 最初からやり直す。取り込んだPDFと画面の状態だけを消し、
+     取引先・頻度・別名の登録（育てた資産）は残す */
+  function resetAll(){
+    if(items.length && !confirm('取り込んだPDF '+items.length+'件を全部消して、最初からやり直しますか？\n（取引先・物件の登録は消えません）')) return;
+    items=[]; mixOverride=false; curSort='date';
+    monthEndCheck=false;
+    const chk=document.getElementById('monthEndChk'); if(chk) chk.checked=false;
+    document.getElementById('f_company').value='';
+    document.getElementById('pdfInput').value='';
+    periodTouched=false; monthTouched=false; periodStyle='h1';
+    initMonthSelect();
+    renderAll();
+    setStatus('','');
+  }
   function sortBy(mode){ curSort = mode; applySort(); renderList(); }
   function applySort(){
     if(curSort==='date'){
@@ -399,7 +548,11 @@
     }
   }
 
-  function renderAll(){ renderList(); renderMgmt(); }
+  function renderAll(){ renderList(); renderMgmt(); syncResetBtn(); }
+  function syncResetBtn(){
+    const b=document.getElementById('btnReset');
+    if(b) b.style.display = items.length ? 'block' : 'none';
+  }
 
   function renderList(){
     const ul=document.getElementById('plist');
@@ -463,6 +616,7 @@
 
   /* 出し忘れ警告：取り込んだ取引先で「登録済みなのに今回のPDFに無い」物件を一覧化 */
   function toggleMonthEnd(cb){ monthEndCheck = cb.checked; renderMissing(); }
+  let _missRows = [];
   function renderMissing(){
     const box = document.getElementById('missWarn');
     document.getElementById('monthEndWrap').style.display = items.length ? 'flex' : 'none';
@@ -479,8 +633,14 @@
     });
     if(!missing.length){ box.style.display='none'; return; }
     box.style.display='block';
-    const lines = missing.sort((a,b)=>a.p.localeCompare(b.p,'ja'))
-      .map(m=>`・${esc(m.p)}（${m.f==='1'?'月1回':'月2回'}）`).join('<br>');
+    // 打ち間違いで増えた名前がここに溜まると、本当の出し忘れが埋もれる。
+    // その場で「まとめる」「登録を消す」ができるようにしておく
+    _missRows = missing.sort((a,b)=>a.p.localeCompare(b.p,'ja'));
+    const lines = _missRows.map((m,i)=>`<div class="miss-row">`+
+        `<span class="mr-name">・${esc(m.p)}（${m.f==='1'?'月1回':'月2回'}）</span>`+
+        `<button onclick="mergeInto(${i})" title="別の物件と同じものにまとめる">まとめる</button>`+
+        `<button onclick="dropMissing(${i})" title="この登録を削除">×</button>`+
+      `</div>`).join('');
     box.innerHTML =
       `<p class="mw-strong">📋 報告書が見当たりません（出し忘れ？）</p>`+
       `<div style="font-size:13px; font-weight:700; color:#8a6400; line-height:1.9; margin-bottom:8px">${lines}</div>`+
@@ -547,9 +707,10 @@
 
   /* ===== 新規物件モーダル（取り込むか／取引先／頻度 を質問） ===== */
   let _resolver = null, _chipClients = [], _modalMode = 'new', _pickClient = null, _pickFreq = null;
-  function resolveNewProperty(prop, mode='new', preset=null){
+  let _sameName = null, _mergeTargets = [];
+  function resolveNewProperty(prop, mode='new', preset=null, similar=null){
     return new Promise(res=>{
-      _resolver = res; _modalMode = mode; _pickClient = null; _pickFreq = null;
+      _resolver = res; _modalMode = mode; _pickClient = null; _pickFreq = null; _sameName = similar||null;
       document.getElementById('mProp').textContent = prop || '（物件名が読み取れませんでした）';
       document.getElementById('mTitle').textContent = mode==='edit' ? '取引先・頻度を変更' : '新しい物件です';
       document.getElementById('mMsg').textContent = mode==='edit'
@@ -569,9 +730,75 @@
         if(preset.client){ const i=_chipClients.indexOf(preset.client); if(i>=0){ pickChip(i); } else { setNewClientVal(preset.client); } }
         if(preset.freq){ setFreq(preset.freq); }
       }
+      // 似た名前が見つかったときは、まず「同じ物件か」だけを聞く。
+      // 「いいえ」を選んだ時点で、いつもの新規登録の画面に切り替わる
+      const sameBox=document.getElementById('mSame');
+      const normal =document.getElementById('mNormal');
+      document.getElementById('mMerge').style.display='none';
+      if(_sameName && mode==='new'){
+        document.getElementById('msName').textContent=_sameName;
+        sameBox.style.display='block'; normal.style.display='none';
+        document.getElementById('mConfirm').style.display='none';
+      }else{
+        sameBox.style.display='none'; normal.style.display='block';
+        document.getElementById('mConfirm').style.display='';
+      }
       updateConfirm();
       document.getElementById('modalBg').style.display='flex';
     });
+  }
+  /* 「同じ物件ですか？」への答え */
+  function answerSame(yes){
+    if(yes){
+      const name=_sameName; closeModal();
+      const r=_resolver; _resolver=null; r({ alias:name });
+      return;
+    }
+    document.getElementById('mSame').style.display='none';      // 別物件 → いつもの登録画面へ
+    document.getElementById('mNormal').style.display='block';
+    document.getElementById('mConfirm').style.display='';
+  }
+
+  /* 「まとめる」＝登録ずみの名前を、別の物件の別名に付け替えて登録を消す。
+     報告漏れの欄に打ち間違いの名前が溜まったときの後始末に使う */
+  function mergeInto(idx){
+    const wrongName=(_missRows[idx]||{}).p; if(!wrongName) return;
+    const targets=[...new Set(items.map(it=>it.prop).filter(Boolean).concat(Object.keys(propMap)))]
+      .filter(n=>n!==wrongName).sort((a,b)=>a.localeCompare(b,'ja'));
+    if(!targets.length){ alert('まとめる先の物件がありません。'); return; }
+    _mergeTargets=targets; _sameName=null;
+    document.getElementById('mTitle').textContent='どの物件と同じですか？';
+    document.getElementById('mProp').textContent=wrongName;
+    document.getElementById('mMsg').textContent='選ぶと、この名前は今後その物件として扱われます（登録は1つにまとまります）。';
+    document.getElementById('mSame').style.display='none';
+    document.getElementById('mNormal').style.display='none';
+    document.getElementById('mConfirm').style.display='none';
+    document.getElementById('mSkip').textContent='キャンセル';
+    document.getElementById('mMerge').style.display='block';
+    document.getElementById('mMergeList').innerHTML =
+      targets.map((t,i)=>`<button class="chip" onclick="doMerge(${i})">${esc(t)}</button>`).join('');
+    _resolver=()=>{};                        // ×やキャンセルで閉じても何も起きないようにする
+    document.getElementById('modalBg').style.display='flex';
+    _mergeWrong=wrongName;
+  }
+  let _mergeWrong=null;
+  function doMerge(i){
+    const target=_mergeTargets[i], wrong=_mergeWrong;
+    if(!target||!wrong) return;
+    addAlias(wrong, target);                 // 次回から自動で寄せる
+    delete propMap[wrong]; delete freqMap[wrong]; saveMap(); saveFreq();
+    items.forEach(it=>{ if(it.prop===wrong){ it.prop=target; it.client=lookupClient(target)||it.client; } });
+    closeModal(); _mergeWrong=null;
+    renderAll();
+    setStatus('ok','✅ 「'+wrong+'」を「'+target+'」にまとめました。次回から自動で同じ物件として扱います。');
+  }
+  /* 報告漏れの欄から、登録そのものを消す */
+  function dropMissing(idx){
+    const name=(_missRows[idx]||{}).p; if(!name) return;
+    if(!confirm('「'+name+'」の登録を削除しますか？\n報告漏れの一覧から消えます。（次回この名前で取り込むと、また確認します）')) return;
+    delete propMap[name]; delete freqMap[name]; saveMap(); saveFreq();
+    renderAll();
+    setStatus('ok','✅ 「'+name+'」の登録を削除しました。');
   }
   function pickChip(i){
     _pickClient = _chipClients[i];
@@ -671,6 +898,91 @@
     renderMgmt();
   }
 
+  /* ===== 保存先フォルダ =====
+     Chrome/Edge が持つ「フォルダを直接扱う仕組み」を使い、選んだフォルダを覚えて次回から
+     ダイアログ無しでそこへ保存する。フォルダの参照は文字列にできないので localStorage には
+     入らず、IndexedDB に保存する。Safari など未対応の環境では、従来どおりダウンロードする。 */
+  const DB_NAME='must-matome', DB_STORE='handles', DIR_KEY='outDir';
+  const canPickDir = typeof window.showDirectoryPicker === 'function';
+  let outDirHandle = null;
+
+  function idb(){
+    return new Promise((res,rej)=>{
+      const rq=indexedDB.open(DB_NAME,1);
+      rq.onupgradeneeded=()=>{ rq.result.createObjectStore(DB_STORE); };
+      rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error);
+    });
+  }
+  function idbPut(key,val){
+    return idb().then(db=>new Promise((res,rej)=>{
+      const tx=db.transaction(DB_STORE,'readwrite');
+      tx.objectStore(DB_STORE).put(val,key);
+      tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
+    })).catch(()=>{});
+  }
+  function idbGet(key){
+    return idb().then(db=>new Promise((res,rej)=>{
+      const tx=db.transaction(DB_STORE,'readonly');
+      const rq=tx.objectStore(DB_STORE).get(key);
+      rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>rej(rq.error);
+    })).catch(()=>null);
+  }
+
+  function renderSaveDir(){
+    const wrap=document.getElementById('saveDirWrap');
+    const val=document.getElementById('sdVal');
+    const pick=document.getElementById('sdPick');
+    const clr=document.getElementById('sdClear');
+    if(!canPickDir){                                  // 未対応ブラウザでは行ごと隠す（できないことは見せない）
+      wrap.style.display='none'; return;
+    }
+    wrap.style.display='flex';
+    if(outDirHandle){
+      val.textContent='📁 '+outDirHandle.name+' に保存します';
+      pick.textContent='変更'; clr.style.display='';
+    }else{
+      val.textContent='未設定（ブラウザのダウンロード先）';
+      pick.textContent='フォルダを選ぶ'; clr.style.display='none';
+    }
+    document.getElementById('btnMerge').textContent = outDirHandle ? '📚 結合して保存' : '📚 結合してダウンロード';
+  }
+  async function pickSaveDir(){
+    try{
+      const h=await window.showDirectoryPicker({ id:'must-matome-out', mode:'readwrite' });
+      outDirHandle=h; await idbPut(DIR_KEY,h); renderSaveDir();
+      setStatus('ok','✅ 保存先を「'+h.name+'」にしました。次回からもここに保存します。');
+    }catch(e){ /* 利用者がキャンセルした場合は何もしない */ }
+  }
+  async function clearSaveDir(){
+    outDirHandle=null; await idbPut(DIR_KEY,null); renderSaveDir();
+    setStatus('','');
+  }
+  /* 覚えているフォルダを呼び戻す。権限は開き直すたびに確認が要ることがある */
+  async function restoreSaveDir(){
+    if(!canPickDir) { renderSaveDir(); return; }
+    const h=await idbGet(DIR_KEY);
+    if(h){
+      try{
+        const st=await h.queryPermission({mode:'readwrite'});
+        if(st==='granted' || st==='prompt') outDirHandle=h;      // prompt は保存する時に確認する
+      }catch(e){}
+    }
+    renderSaveDir();
+  }
+  /* 保存先フォルダへ書き込む。権限が無ければその場で求め、断られたらダウンロードに切り替える */
+  async function saveToDir(bytes, name){
+    if(!outDirHandle) return false;
+    try{
+      let st=await outDirHandle.queryPermission({mode:'readwrite'});
+      if(st!=='granted') st=await outDirHandle.requestPermission({mode:'readwrite'});
+      if(st!=='granted') return false;
+      const fh=await outDirHandle.getFileHandle(name,{create:true});
+      const w=await fh.createWritable();
+      await w.write(bytes); await w.close();
+      return true;
+    }catch(e){ return false; }
+  }
+
   /* ===== 画質選択（メール送付用の軽量化） ===== */
   function setQ(q){
     quality = q;
@@ -704,12 +1016,18 @@
       const name = outFileName();                       // 清掃報告書_○月△半分_【取引先名】.pdf
       const cs = clientsInList();                       // 月1回の書き方は取引先ごとに覚えて次回も同じにする
       if(cs.length===1 && (periodStyle==='m1'||periodStyle==='mo')){ pStyleMap[cs[0]]=periodStyle; persist(LS_PSTYLE, pStyleMap); }
-      const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
-      const a=document.createElement('a'); a.href=url; a.download=name; a.click();
-      setTimeout(()=>URL.revokeObjectURL(url), 10000);
+      let where='';
+      if(await saveToDir(bytes, name)){                 // 保存先フォルダが設定済み＝そこへ直接書く
+        where='（'+outDirHandle.name+' に保存）';
+      }else{
+        if(outDirHandle){ where='（フォルダに書けなかったのでダウンロードしました）'; }
+        const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
+        const a=document.createElement('a'); a.href=url; a.download=name; a.click();
+        setTimeout(()=>URL.revokeObjectURL(url), 10000);
+      }
       const over = bytes.length > 25*1048576;
       setStatus(over?'ng':'ok',
-        `✅ ${items.length}件・${pageCount}ページ / ${fmtSize(bytes.length)}「${name}」を保存しました`+
+        `✅ ${items.length}件・${pageCount}ページ / ${fmtSize(bytes.length)}「${name}」を保存しました${where}`+
         (over?' ⚠️ 25MBを超えています。「軽量」を選ぶか、ファイルを分けて送ってください。':''));
     }catch(err){
       setStatus('ng','結合に失敗しました：'+(err&&err.message||err));
@@ -763,6 +1081,7 @@
   updateQHint();      // 起動時に画質ヒントを表示
   initMonthSelect();  // 期間の月プルダウン（初期＝今月）
   updateFileName();   // 起動時にファイル名プレビューを表示
+  restoreSaveDir();   // 前回選んだ保存先フォルダを呼び戻す（未対応ブラウザでは行ごと隠れる）
 </script>
 </body>
 </html>
