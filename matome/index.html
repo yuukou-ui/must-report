@@ -129,6 +129,11 @@
   .search-box input{ background:#fafbfd; }
 
   /* 新規物件の取引先を聞くモーダル */
+  .btn-copy{ display:block; width:100%; margin-top:14px; padding:12px; border-radius:10px; cursor:pointer;
+    border:1.5px solid var(--navy2); background:#fff; color:var(--navy); font-size:13.5px; font-weight:700; }
+  .btn-copy:active{ background:var(--bg2); }
+  .copy-note{ font-size:12.5px; line-height:1.7; color:var(--muted); margin:8px 2px 0; white-space:pre-wrap; }
+  .copy-note.ok{ color:#14532d; }
   .btn-reset{ display:block; width:100%; margin-top:12px; padding:11px; border-radius:10px; cursor:pointer;
     border:1px solid #fca5a5; background:#fff5f5; color:#b91c1c; font-size:13.5px; font-weight:700; }
   .btn-reset:active{ background:#fee2e2; }
@@ -139,6 +144,12 @@
   .savedir button{ flex:none; border:1px solid var(--line); background:#fff; border-radius:8px;
     padding:6px 10px; font-size:12.5px; cursor:pointer; }
   .savedir button:active{ background:var(--bg2); }
+  .m-hint{ background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:11px 12px; margin:10px 0 4px; }
+  .m-hint .mh-q{ font-size:13px; line-height:1.7; margin:0 0 9px; color:#1e3a8a; }
+  .m-hint .mh-q b{ color:#1d4ed8; }
+  .m-hint .mh-yes{ display:block; width:100%; padding:9px; border-radius:9px; cursor:pointer;
+    border:1px solid #bfdbfe; background:#fff; color:#1e3a8a; font-size:13px; font-weight:700; }
+  .m-hint .mh-yes:active{ background:#dbeafe; }
   .m-same{ background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:12px; margin:10px 0 4px; }
   .m-same .ms-q{ font-size:14px; line-height:1.7; margin:0 0 10px; color:#7c2d12; }
   .m-same .ms-q b{ color:#b3500a; }
@@ -273,6 +284,8 @@
       <input type="text" id="mgmtSearchBox" placeholder="🔎 物件名・取引先で検索" oninput="mgmtQuery=this.value; renderMgmt();">
     </div>
     <div class="scroll-box" id="mgmtScroll"><div id="mgmtList"></div></div>
+    <button class="btn-copy" id="btnCopyList" onclick="copyPlaceList()">📋 物件一覧をコピー（現場のスマホに配る用）</button>
+    <p class="copy-note" id="copyNote"></p>
     <p class="hint">取引先名をタップで開閉。✎＝取引先の付け替え、×＝登録の削除。誤って登録した物件はここで直せます。</p>
   </div>
 
@@ -290,6 +303,12 @@
       <p class="ms-q">登録ずみの <b id="msName"></b> と同じ物件ではありませんか？</p>
       <button class="ms-yes" onclick="answerSame(true)">はい、同じ物件です（まとめる）</button>
       <button class="ms-no" onclick="answerSame(false)">いいえ、別の物件です</button>
+    </div>
+    <!-- 判定が微妙なもの。既定は新規登録のまま＝押さなければ何も起きない -->
+    <div class="m-hint" id="mHint" style="display:none">
+      <p class="mh-q">似た名前が登録されています：<b id="mhName"></b><br>
+        別の物件ならこのまま取引先を選んでください。</p>
+      <button class="mh-yes" onclick="useHint()">同じ物件だった（まとめる）</button>
     </div>
     <!-- 「まとめる」＝この名前を、どの物件の別名にするか選ぶ -->
     <div class="m-merge" id="mMerge" style="display:none">
@@ -428,6 +447,23 @@
      打ち間違い扱いしないための歯止め。ここが違えば別物件と決めつけてよい。
      normKey が V→5・五→5 まで直したあとに使うので、書き方の違いでズレることはない */
   function enumSig(k){ return (k.match(/\d+|[a-z]+/g)||[]).join(','); }
+  /* 「たぶん別物件だが、念のため知らせておきたい」名前をさがす。
+     findSimilar が確信を持てなかったもの＝番号や棟記号が違うだけのものが主。
+     ここで拾ったものは自動でまとめず、画面に出すだけにして既定は新規登録のまま進める。 */
+  function findNear(prop){
+    const k=normKey(prop);
+    if(!k) return null;
+    let best=null, bestD=Infinity;
+    Object.keys(propMap).forEach(reg=>{
+      const rk=normKey(reg);
+      if(!rk || rk===k) return;
+      if(Math.abs(rk.length-k.length) > 2) return;
+      const d=editDistance(k,rk);
+      const limit = k.length<=4 ? 1 : (k.length<=8 ? 2 : 3);
+      if(d<=limit && d<bestD){ bestD=d; best=reg; }
+    });
+    return best;
+  }
   function findSimilar(prop){
     const k=normKey(prop);
     if(!k) return null;
@@ -499,8 +535,9 @@
       if(canon !== meta.prop){ fixed.push(`${meta.prop} → ${canon}`); meta.prop = canon; }
       let client = lookupClient(meta.prop);            // 既知の物件なら取引先を自動割り当て
       if(client === null){                              // 新しい物件 → まず打ち間違いを疑い、次に取引先を確認
-        const near = findSimilar(meta.prop);
-        const res = await resolveNewProperty(meta.prop, 'new', null, near);
+        const near = findSimilar(meta.prop);                 // 打ち間違いの可能性が高い＝はい/いいえで聞く
+        const hint = near ? null : findNear(meta.prop);      // 微妙なもの＝知らせるだけ（既定は新規登録）
+        const res = await resolveNewProperty(meta.prop, 'new', null, near, hint);
         if(res.skip) continue;                          // 「取り込まない」→ このPDFは除外
         if(res.alias){                                  // 「同じ物件です」＝登録ずみの名前に寄せる
           addAlias(meta.prop, res.alias);
@@ -707,10 +744,11 @@
 
   /* ===== 新規物件モーダル（取り込むか／取引先／頻度 を質問） ===== */
   let _resolver = null, _chipClients = [], _modalMode = 'new', _pickClient = null, _pickFreq = null;
-  let _sameName = null, _mergeTargets = [];
-  function resolveNewProperty(prop, mode='new', preset=null, similar=null){
+  let _sameName = null, _mergeTargets = [], _hintName = null;
+  function resolveNewProperty(prop, mode='new', preset=null, similar=null, hint=null){
     return new Promise(res=>{
-      _resolver = res; _modalMode = mode; _pickClient = null; _pickFreq = null; _sameName = similar||null;
+      _resolver = res; _modalMode = mode; _pickClient = null; _pickFreq = null;
+      _sameName = similar||null; _hintName = hint||null;
       document.getElementById('mProp').textContent = prop || '（物件名が読み取れませんでした）';
       document.getElementById('mTitle').textContent = mode==='edit' ? '取引先・頻度を変更' : '新しい物件です';
       document.getElementById('mMsg').textContent = mode==='edit'
@@ -735,6 +773,12 @@
       const sameBox=document.getElementById('mSame');
       const normal =document.getElementById('mNormal');
       document.getElementById('mMerge').style.display='none';
+      // 微妙な似た名前は「知らせるだけ」。押さなければ今までどおり新規登録として進む
+      const hintBox=document.getElementById('mHint');
+      if(_hintName && mode==='new'){
+        document.getElementById('mhName').textContent=_hintName;
+        hintBox.style.display='block';
+      }else{ hintBox.style.display='none'; }
       if(_sameName && mode==='new'){
         document.getElementById('msName').textContent=_sameName;
         sameBox.style.display='block'; normal.style.display='none';
@@ -746,6 +790,11 @@
       updateConfirm();
       document.getElementById('modalBg').style.display='flex';
     });
+  }
+  /* 「似た名前があります」の欄から、あとで同じ物件だと気づいたとき */
+  function useHint(){
+    const name=_hintName; if(!name) return;
+    closeModal(); const r=_resolver; _resolver=null; r({ alias:name });
   }
   /* 「同じ物件ですか？」への答え */
   function answerSame(yes){
@@ -896,6 +945,45 @@
     if(!confirm(`「${prop}」の登録を削除しますか？\n（次回この物件を取り込むと、また取引先を確認します）`)) return;
     delete propMap[prop]; delete freqMap[prop]; saveMap(); saveFreq();
     renderMgmt();
+  }
+
+  /* ===== 物件一覧の書き出し =====
+     整理し終わった物件名を現場のスマホへ配るための文字列を作る。
+     公開URLに置くと誰でも読めてしまうため、LINE等で必要な人にだけ渡す方式にしている。
+     先頭の合図（MUST-BUKKEN/1）は、報告書ツール側が「これは物件一覧だ」と見分けるための目印。
+     取引先名は入れない＝現場の入力候補に必要なのは物件名だけなので、渡す情報を最小限にする。 */
+  const LIST_TAG='MUST-BUKKEN/1';
+  function placeListText(){
+    const names=Object.keys(propMap).filter(Boolean).sort((a,b)=>a.localeCompare(b,'ja'));
+    // 合図のうしろに件数を入れる。受け取った側で「途中で切れていないか」を数えて確かめられる
+    return LIST_TAG+' '+names.length+'\n'+names.join('\n');
+  }
+  async function copyPlaceList(){
+    const names=Object.keys(propMap).filter(Boolean);
+    const note=document.getElementById('copyNote');
+    if(!names.length){ note.className='copy-note'; note.textContent='まだ登録された物件がありません。'; return; }
+    const text=placeListText();
+    let ok=false;
+    try{ await navigator.clipboard.writeText(text); ok=true; }catch(e){ ok=false; }
+    if(!ok){                                   // 権限等でコピーできない環境向けの逃げ道
+      const ta=document.createElement('textarea');
+      ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try{ ok=document.execCommand('copy'); }catch(e){ ok=false; }
+      ta.remove();
+    }
+    // LINEのテキスト1通は約5,000文字が上限。近づいたら先に知らせる
+    const LIMIT=5000, WARN=4000;
+    const over = text.length>WARN;
+    note.className='copy-note'+(ok&&!over?' ok':'');
+    const size='（'+names.length+'件・'+text.length.toLocaleString()+'文字）';
+    note.textContent = !ok
+      ? '⚠️ 自動コピーができませんでした。下の文字を手で選んでコピーしてください。'+size+'\n\n'+text
+      : over
+        ? '✅ コピーしました'+size+'\n⚠️ LINEの1通の上限（約'+LIMIT.toLocaleString()+'文字）に近づいています。'
+          +'送ったあと、受け取った側の画面で件数が「'+names.length+'件」と出るか必ず確かめてください。'
+          +'足りなければ文字が途中で切れています。'
+        : '✅ コピーしました'+size+'\n社内LINEに貼り付けて送ってください。受け取った人は、報告書ツールの画面いちばん下「物件一覧」を開いて貼り付けます。';
   }
 
   /* ===== 保存先フォルダ =====

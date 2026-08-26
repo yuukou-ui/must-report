@@ -110,13 +110,41 @@
   .nchip{ display:inline-flex; align-items:center; gap:5px; padding:8px 13px; border:1.5px solid var(--navy2);
     border-radius:18px; background:#fff; color:var(--navy); font-size:14px; font-weight:700; cursor:pointer; }
   .nchip.on{ background:#fff6ee; border-color:var(--orange); color:var(--orange2); }
-  .nchip .x{ border:none; background:none; color:var(--muted); font-size:15px; line-height:1; cursor:pointer; padding:0; }
+  /* チップの×。候補リストの×と同じく、押せると分かる大きさ・見た目にする（2026-08-26） */
+  .nchip .x{ flex:none; width:30px; height:30px; margin:-6px -8px -6px 2px; border:none; border-radius:50%;
+    background:rgba(20,49,94,.07); color:var(--muted); font-size:16px; line-height:1; cursor:pointer; padding:0;
+    display:inline-flex; align-items:center; justify-content:center; touch-action:manipulation; }
+  .nchip .x:active{ background:#fee2e2; color:#b91c1c; }
   .name-save{ margin-top:8px; border:1.5px dashed var(--line); background:var(--bg); color:var(--navy);
     border-radius:10px; padding:9px 14px; font-size:13px; font-weight:700; cursor:pointer; }
 
   /* ===== プレビュー：実物レイアウト＋細線スパイス（A4 1枚） ===== */
   #previewView{ display:none; }
   /* 入力の自動保存を知らせる帯。ブラウザが落ちて戻された時にここで気づける */
+  /* 圏外のときに出る帯。作業は続けられることを伝える */
+  /* 物件一覧（普段は使わない）。目立たせず、しかし件数は常に見えるようにする */
+  .mst{ margin:18px 2px 4px; }
+  .mst-bar{ display:flex; align-items:center; width:100%; gap:8px; padding:10px 4px; border:none;
+    background:none; color:var(--muted); font-size:12.5px; cursor:pointer; text-align:left;
+    border-top:1px solid var(--line); }
+  .mst-bar .mst-caret{ margin-left:auto; font-size:15px; }
+  .mst-body{ padding:4px 4px 8px; }
+  .mst-help{ font-size:12.5px; color:var(--muted); line-height:1.7; margin:0 0 8px; }
+  .mst-body textarea{ width:100%; box-sizing:border-box; border:1.5px solid var(--line); border-radius:9px;
+    padding:9px 10px; font-size:13px; font-family:inherit; resize:vertical; }
+  .mst-btns{ display:flex; gap:8px; margin-top:8px; }
+  .mst-btns button{ flex:1; padding:10px; border-radius:9px; font-size:13.5px; font-weight:700; cursor:pointer; }
+  .mst-go{ border:none; background:var(--navy2); color:#fff; }
+  .mst-cl{ border:1.5px solid var(--line); background:#fff; color:var(--navy); }
+  .mst-msg{ font-size:12.5px; line-height:1.7; margin:9px 0 0; white-space:pre-wrap; display:none; }
+  .mst-msg.show{ display:block; }
+  .mst-msg.ok{ color:#14532d; }
+  .mst-msg.ng{ color:#b91c1c; }
+  .mst-del{ margin-top:10px; width:100%; padding:9px; border-radius:9px; cursor:pointer;
+    border:1px solid #fca5a5; background:#fff5f5; color:#b91c1c; font-size:12.5px; font-weight:700; }
+  .off-note{ display:none; align-items:center; gap:8px; margin-bottom:12px; padding:10px 12px;
+    border-radius:10px; background:#fef3c7; border:1px solid #fcd34d; color:#78350f; font-size:13px; line-height:1.6; }
+  .off-note.show{ display:flex; }
   .draft-note{ display:none; align-items:center; gap:10px; margin-bottom:12px; padding:10px 12px;
                border-radius:10px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e3a8a; font-size:13px; line-height:1.6; }
   .draft-note.show{ display:flex; }
@@ -212,8 +240,8 @@
     .sheet-foot{ margin-top:2.5mm; padding-top:1.5mm; }
   }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="lib/html2canvas.min.js"></script>
+<script src="lib/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -224,6 +252,8 @@
 
 <!-- ============ 入力 ============ -->
 <div id="inputView" class="wrap">
+
+  <p class="off-note" id="offNote">📶 電波がありません。入力・写真・PDF作成・保存はこのまま続けられます。LINEで送るのは電波の戻った場所で行ってください。</p>
 
   <div class="draft-note" id="draftNote">
     <span id="draftNoteText"></span>
@@ -277,6 +307,23 @@
     <div class="thumbs" id="thumbs"></div>
     <p class="hint-note">8枚を超える分は自動で受け付けません。8枚目は報告書で「予備」と表示されます。<br>
       写真が入らないときは、いちど3〜4枚ずつに分けて選んでみてください。</p>
+  </div>
+
+  <!-- 普段は使わない設定。画面のいちばん下に1行だけ置き、件数がいつでも見えるようにする -->
+  <div class="mst" id="mstBox">
+    <button type="button" class="mst-bar" id="mstBar" onclick="toggleMst()">
+      <span id="mstSummary">物件一覧 未読み込み</span><span class="mst-caret" id="mstCaret">›</span>
+    </button>
+    <div class="mst-body" id="mstBody" style="display:none">
+      <p class="mst-help">まとめツールでコピーした文字を、下の欄に貼り付けてください。</p>
+      <textarea id="mstPaste" placeholder="ここに貼り付け" rows="3"></textarea>
+      <div class="mst-btns">
+        <button type="button" class="mst-go" onclick="importPlaceList(document.getElementById('mstPaste').value)">読み込む</button>
+        <button type="button" class="mst-cl" onclick="toggleMst(false)">閉じる</button>
+      </div>
+      <p class="mst-msg" id="mstMsg"></p>
+      <button type="button" class="mst-del" id="mstDel" onclick="clearPlaceList()" style="display:none">読み込んだ一覧を消す</button>
+    </div>
   </div>
 
 </div>
@@ -703,22 +750,124 @@
     _chipRows=hist.slice(-3).reverse();          // 末尾＝最後に出したのが古い順
     document.getElementById('recentPlaces').innerHTML = _chipRows.length
       ? '<span class="rp-lbl">そろそろ：</span>'+_chipRows.map((o,i)=>
-          `<span class="nchip rp" onclick="useDueChip(${i})">${esc(o.n)}</span>`).join('')
+          `<span class="nchip rp" onclick="useDueChip(${i})">${esc(o.n)}`+
+            `<button class="x" title="この物件を候補から消す" aria-label="この物件を候補から消す"`+
+            ` onpointerdown="event.preventDefault();event.stopPropagation();delDuePlace(${i})"`+
+            ` onmousedown="event.preventDefault();event.stopPropagation();delDuePlace(${i})">×</button>`+
+          `</span>`).join('')
       : '';
+  }
+  /* 「そろそろ」から消す＝端末の記憶から消す。候補リストからも同時に消える */
+  function delDuePlace(i){
+    const now=Date.now();
+    if(now-_delGuard<400) return;              // pointerdown と mousedown の二重実行を防ぐ
+    _delGuard=now;
+    const o=_chipRows[i]; if(!o) return;
+    const k=normKey(o.n);
+    storePlaces(loadPlaces().filter(x=>normKey(x.n)!==k));
+    renderDueChips(); onPlaceInput();
+    photoMsgFlash('「'+o.n+'」を候補から消しました。');
   }
   function useDueChip(i){
     const o=_chipRows[i]; if(!o) return;
     document.getElementById('f_place').value=o.n; _yomiBuf=''; closeAc(); render();
   }
-  /* 物件マスタ.json（あれば読む。無ければ何もしない）
-     ["物件名", ...] でも [{"name":"文京マンション","yomi":"ぶんきょうまんしょん"}, ...] でも可。
-     {"properties":[...]} で包んであっても読む。 */
-  fetch('物件マスタ.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{
-    const list=Array.isArray(j)?j:(j&&Array.isArray(j.properties)?j.properties:null);
-    if(!list) return;
-    masterPlaces=list.map(x=> typeof x==='string' ? {n:x.trim(), y:''}
-      : {n:String(x&&(x.name||x.n)||'').trim(), y:String(x&&(x.yomi||x.y)||'').trim()}).filter(o=>o.n);
-  }).catch(()=>{});
+  /* ===== 物件一覧（まとめツールから配られる、正しい物件名の一覧） =====
+     この端末が自分で覚えた履歴とは別枠で持つ。混ぜないのは、
+     配られた一覧を消しても現場が入力してきた履歴が消えないようにするため。
+     公開URLに置くと誰でも読めてしまうので、LINE等で渡した文字列を貼り付けて取り込む方式にしている。 */
+  const LS_MASTER='must_place_master';
+  const LIST_TAG='MUST-BUKKEN/1';
+  function loadMaster(){
+    try{
+      const o=JSON.parse(localStorage.getItem(LS_MASTER)||'null');
+      if(!o||!Array.isArray(o.list)) return null;
+      return o;
+    }catch(e){ return null; }
+  }
+  function applyMaster(o){
+    masterPlaces = (o&&o.list||[]).map(n=>({n:String(n||'').trim(), y:''})).filter(x=>x.n);
+    renderMstBar(o);
+  }
+  function renderMstBar(o){
+    const el=document.getElementById('mstSummary'); if(!el) return;
+    if(o&&o.list&&o.list.length){
+      const d=new Date(o.t||Date.now());
+      el.textContent='物件一覧 '+o.list.length+'件・'+(d.getMonth()+1)+'/'+d.getDate()+' 更新';
+    }else{
+      el.textContent='物件一覧 未読み込み';
+    }
+    const del=document.getElementById('mstDel');
+    if(del) del.style.display = (o&&o.list&&o.list.length) ? 'block' : 'none';
+  }
+  function toggleMst(force){
+    const body=document.getElementById('mstBody'), caret=document.getElementById('mstCaret');
+    const open = (force===undefined) ? body.style.display==='none' : !!force;
+    body.style.display = open?'block':'none';
+    caret.textContent = open?'⌄':'›';
+    if(open) document.getElementById('mstPaste').focus();
+  }
+  function mstMsg(text, cls){
+    const el=document.getElementById('mstMsg'); if(!el) return;
+    el.textContent=text||''; el.className='mst-msg'+(text?' show ':' ')+(cls||'');
+  }
+  /* 貼り付けられた文字が物件一覧かどうかを見分ける。先頭の合図が無ければ何もしない */
+  function parsePlaceList(text){
+    const t=String(text||'').trim();
+    if(!t.startsWith(LIST_TAG)) return null;
+    const lines=t.split(/\r?\n/);
+    // 1行目「MUST-BUKKEN/1 90」の数字＝送り手が数えた件数。
+    // LINE等で文字が途中で切れても切れた文字列は一見正しく見えるので、この数で欠けを見破る
+    const m=lines[0].match(/^\S+\s+(\d+)\s*$/);
+    const expect = m ? +m[1] : null;
+    const names=lines.slice(1).map(x=>x.trim()).filter(Boolean);
+    const seen=new Set(), out=[];
+    names.forEach(n=>{ const k=normKey(n); if(k && !seen.has(k)){ seen.add(k); out.push(n); } });
+    return { list:out, expect };
+  }
+  function importPlaceList(text){
+    const parsed=parsePlaceList(text);
+    if(!parsed){
+      mstMsg('物件一覧の文字ではないようです。まとめツールの「物件一覧をコピー」で出てきた文字を、そのまま貼り付けてください。','ng');
+      return false;
+    }
+    const list=parsed.list;
+    if(!list.length){ mstMsg('物件名が1件も入っていませんでした。','ng'); return false; }
+    // 送り手が数えた件数より少なければ、貼り付けた文字が途中で切れている
+    if(parsed.expect!==null && list.length < parsed.expect){
+      mstMsg('⚠️ '+parsed.expect+'件あるはずですが、'+list.length+'件しか読み取れませんでした。\n'
+            +'貼り付けた文字が途中で切れています。読み込まずに中止しました。'
+            +'もう一度コピーし直すか、送り主に分けて送ってもらってください。','ng');
+      return false;
+    }
+    const before=new Set(masterPlaces.map(o=>normKey(o.n)));
+    const added=list.filter(n=>!before.has(normKey(n))).length;
+    const o={list, t:Date.now()};
+    try{ localStorage.setItem(LS_MASTER, JSON.stringify(o)); }catch(e){}
+    applyMaster(o);
+    document.getElementById('mstPaste').value='';
+    mstMsg('✅ '+list.length+'件を読み込みました'+(added?'（うち新しい物件 '+added+'件）':'（内容は前回と同じでした）')+'。物件名の欄に候補として出ます。','ok');
+    onPlaceInput();
+    return true;
+  }
+  function clearPlaceList(){
+    if(!confirm('読み込んだ物件一覧を消しますか？\n（この端末が自分で覚えた物件名は消えません）')) return;
+    try{ localStorage.removeItem(LS_MASTER); }catch(e){}
+    applyMaster(null);
+    mstMsg('読み込んだ一覧を消しました。','');
+  }
+  applyMaster(loadMaster());
+
+  /* 近道：清掃場所の欄に一覧を貼り付けても取り込む。
+     合図で始まる文字にしか反応しないので、普通の物件名を打っても誤作動しない */
+  document.getElementById('f_place').addEventListener('paste', e=>{
+    const t=(e.clipboardData||window.clipboardData);
+    const text=t?t.getData('text'):'';
+    if(!text || !String(text).trim().startsWith(LIST_TAG)) return;
+    e.preventDefault();
+    toggleMst(true);
+    if(importPlaceList(text)){ document.getElementById('mstBox').scrollIntoView({block:'center'}); }
+  });
 
   /* 清掃者の名前プリセット（端末内localStorageに保存） */
   function loadNames(){ try{ return JSON.parse(localStorage.getItem('cleanerNames')||'[]'); }catch(e){ return []; } }
@@ -965,6 +1114,19 @@
 
   document.getElementById('f_date').valueAsDate=new Date();
   renderNameChips(); renderDueChips();
+  /* オフラインで使えるようにする保管係を登録する。
+     画面本体は毎回インターネットを先に見に行く作りなので、更新が止まることはない（sw.js を参照） */
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+  }
+  function syncOnline(){
+    const el=document.getElementById('offNote'); if(!el) return;
+    el.classList.toggle('show', !navigator.onLine);
+  }
+  window.addEventListener('online', syncOnline);
+  window.addEventListener('offline', syncOnline);
+  syncOnline();
+
   restoreDraft();                       // 落ちて戻された時のために、まず控えを戻す
   renderChecks(); render();
   document.getElementById('inputView').addEventListener('input', saveDraftSoon);
