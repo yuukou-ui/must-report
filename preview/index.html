@@ -628,12 +628,11 @@
       photoThumbs.map((d,i)=>
         `<div class="thumb"><img src="${d}"><button class="del" onclick="delPhoto(${i})">×</button></div>`).join('')
       + '<div class="slot"></div>'.repeat(Math.max(0, MAX_PHOTOS-n-1));
-    if(n<MAX_PHOTOS){
-      pick.style.display='';
-      box.insertBefore(pick, box.children[n]||null);   // 次の空きマスの位置へ移す
-    }else{
-      pick.style.display='none';                       // 8枚そろったら撮影タイルは出さない
-    }
+    // 撮影タイルは枚数に関わらず必ず枠の中へ戻す。
+    // 8枚のとき戻さずにいると、直前の box.innerHTML で外れたまま document から消え、
+    // 次に renderThumbs() を呼んだ時に取得できずに落ちる（＝「次の報告書へ」も写真の削除も効かなくなる）。
+    box.insertBefore(pick, box.children[n]||null);   // 次の空きマスの位置へ移す
+    pick.style.display = n<MAX_PHOTOS ? '' : 'none'; // 8枚そろったら見せないだけ（DOMには残す）
   }
 
   /* ===== 物件名の候補（表記ゆれ防止） =====
