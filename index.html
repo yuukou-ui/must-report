@@ -100,6 +100,9 @@
   .ac-note{ display:none; font-size:12.5px; color:#14532d; background:#f0fdf4; border:1px solid #bbf7d0;
     border-radius:8px; padding:6px 10px; margin:8px 0 0; }
   .ac-note.show{ display:block; }
+  /* 清掃日が「日本時間の今日」と違う時だけ出す注意書き */
+  .date-note{ display:none; font-size:12.5px; font-weight:700; color:#9a3412; background:#fff7ed;
+    border:1px solid #fed7aa; border-radius:8px; padding:6px 10px; margin:-8px 0 14px; }
   .ac-item.fix{ background:#fff6ee; color:var(--orange2); font-weight:700; line-height:1.5; }
   .ac-item.fix b{ display:block; font-size:11.5px; font-weight:800; color:#b3500a; margin-bottom:2px; }
   .rp-lbl{ font-size:12px; font-weight:700; color:var(--muted); align-self:center; }
@@ -274,7 +277,8 @@
       <div class="name-chips" id="recentPlaces"></div>
     </div>
     <label class="fld"><span>清掃日</span>
-      <input type="date" id="f_date" oninput="render()"></label>
+      <input type="date" id="f_date" oninput="markDateTouched();render()"></label>
+    <p class="date-note" id="dateNote"></p>
     <label class="fld"><span>清掃者</span>
       <input type="text" id="f_worker" placeholder="例：佐藤" oninput="render();syncNameChips()"></label>
     <div class="name-chips" id="nameChips"></div>
@@ -899,6 +903,7 @@
       document.getElementById('btnNext').style.display='none';
       document.getElementById('pdfReady').style.display='none';
       document.getElementById('pdfHint').style.display='';
+      refreshDate();                  // プレビューに来るたび清掃日を日本時間の今日に取り直す
       render(); scaleSheet();
     }
     window.scrollTo(0,0);
@@ -954,6 +959,7 @@
   /* ブラウザの印刷機能を使わず、報告書を画像化してA4 1枚のPDFを直接生成する。
      これにより iOS Safari が付けるURL/日付/ページ番号が一切入らず、必ず1枚に収まる。 */
   async function makePDF(){
+    refreshDate(); render();          // 用紙に焼き付ける直前に、もう一度その時点の日本時間の今日を取り直す
     const btn=document.getElementById('btnPdf');
     const old=btn.textContent; btn.disabled=true; btn.textContent='PDFを作成中…';
     document.getElementById('btnSave').style.display='none';
@@ -1028,6 +1034,7 @@
     renderChecks();
     renderThumbs();
     _pdfBlob=null;
+    refreshDate();                    // 引き継いだ清掃日も、手直ししていなければ今日に合わせ直す
     render();
     switchView('input');
     document.getElementById('f_place').focus();   // すぐ次の物件名を打てるようカーソルを合わせる
@@ -1080,7 +1087,7 @@
   let _draftTimer=null;
   function draftData(){
     return { place:val('f_place'), date:val('f_date'), worker:val('f_worker'), notes:val('f_notes'),
-             checked:works.filter(w=>w.checked).map(w=>w.name), t:Date.now() };
+             checked:works.filter(w=>w.checked).map(w=>w.name), dateTouched:_dateTouched, t:Date.now() };
   }
   function saveDraft(){
     const d=draftData();
@@ -1099,7 +1106,8 @@
     if(!d) return;
     if(Date.now()-(d.t||0) > 12*60*60*1000){ clearDraft(); return; }   // 半日以上前の控えは使わない
     if(d.place) document.getElementById('f_place').value=d.place;
-    if(d.date)  document.getElementById('f_date').value=d.date;
+    // 日付は「手で直した」控えだけ戻す。自動で入っていた日付は戻さず、あとで今日の日付に入れ直す
+    if(d.date && d.dateTouched){ document.getElementById('f_date').value=d.date; _dateTouched=true; }
     if(d.worker)document.getElementById('f_worker').value=d.worker;
     if(d.notes) document.getElementById('f_notes').value=d.notes;
     if(d.checked&&d.checked.length) works.forEach(w=>{ if(d.checked.includes(w.name)) w.checked=true; });
@@ -1112,7 +1120,42 @@
   function val(id){ const e=document.getElementById(id); return e?e.value:''; }
   function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
-  document.getElementById('f_date').valueAsDate=new Date();
+  /* ===== 清掃日は「日本時間の今日」を入れ直す =====
+     これまでの不具合（2026-08-31 修正）：
+      1. valueAsDate に new Date() を入れていた。valueAsDate は日付を世界標準時(UTC)として読むため、
+         日本時間の朝9時前に開くと必ず前日が入った（8:51に起動 → 前日の日付）。
+      2. しかも起動時に一度入れるだけだったので、アプリを開きっぱなしだと古い日付が残り続けた
+         （同じ起動のまま10:49に2件目を作っても前日のまま）。
+     対策：日本時間の日付を文字列で作り、プレビューを開く時・PDFを作る時・アプリに戻った時に取り直す。
+     ただし清掃者が自分で日付を直した時（前日分をあとで作る等）は、その日付を尊重して書き換えない。 */
+  function todayJST(){
+    try{
+      // en-CA は YYYY-MM-DD 形式。端末の時計が海外時刻に設定されていても日本時間で判定できる
+      return new Intl.DateTimeFormat('en-CA',{ timeZone:'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
+    }catch(e){
+      const d=new Date(Date.now()+9*60*60*1000);          // 予備：世界標準時に9時間足して日本時間にする
+      const p=n=>String(n).padStart(2,'0');
+      return d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate());
+    }
+  }
+  let _dateTouched=false;                                  // 清掃日を手で直したか（直した日付は勝手に書き換えない）
+  function markDateTouched(){ _dateTouched=true; dateNote(); }
+  function refreshDate(){                                  // 手つかずなら、その時点の日本時間の今日に入れ直す
+    const e=document.getElementById('f_date'); if(!e) return;
+    const t=todayJST();
+    if((!_dateTouched || !e.value) && e.value!==t) e.value=t;
+    dateNote();
+  }
+  function dateNote(){                                     // 今日と違う日付のままなら気づけるように出す
+    const n=document.getElementById('dateNote'); if(!n) return;
+    const v=val('f_date'), t=todayJST();
+    if(v && v!==t){
+      const a=t.split('-');
+      n.textContent='※ 清掃日が今日（'+Number(a[1])+'/'+Number(a[2])+'）ではありません。あとから作る報告書ならこのままで大丈夫です。';
+      n.style.display='block';
+    }else{ n.style.display='none'; }
+  }
+
   renderNameChips(); renderDueChips();
   /* オフラインで使えるようにする保管係を登録する。
      画面本体は毎回インターネットを先に見に行く作りなので、更新が止まることはない（sw.js を参照） */
@@ -1128,9 +1171,13 @@
   syncOnline();
 
   restoreDraft();                       // 落ちて戻された時のために、まず控えを戻す
+  refreshDate();                        // 清掃日は日本時間の今日を入れる（控えを戻したあとに実行）
   renderChecks(); render();
   document.getElementById('inputView').addEventListener('input', saveDraftSoon);
-  document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveDraft(); });  // 写真を選びに離れる直前に確実に控える
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden){ saveDraft(); }              // 写真を選びに離れる直前に確実に控える
+    else { refreshDate(); render(); }                // 戻ってきた時に清掃日を取り直す（日をまたいでも古い日付が残らない）
+  });
 </script>
 </body>
 </html>
