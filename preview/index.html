@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="format-detection" content="telephone=no">
+<title>清掃報告書｜マスト管理 有限会社</title>
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14315e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="取引先別_清掃報告書">
+<style>
+  :root{
+    --navy:#14315e; --navy2:#1f4a8a; --orange:#ff7a18; --orange2:#e85d00;
+    --bg:#f4f7fb; --bg2:#eef2f8; --line:#d8dee9; --ink:#1a2233; --muted:#5b6577;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{ margin:0; font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+    color:var(--ink); background:var(--bg2); line-height:1.6; }
+
+  /* ===== 切替トグル ===== */
+  .toggle-bar{ position:sticky; top:0; z-index:50; display:flex; gap:6px; padding:8px;
+    background:var(--navy); box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .toggle-bar button{ flex:1; padding:12px 8px; font-size:15px; font-weight:700; border:none;
+    border-radius:10px; background:rgba(255,255,255,.15); color:#fff; cursor:pointer; transition:.15s; }
+  .toggle-bar button.active{ background:var(--orange); }
+
+  .wrap{ max-width:720px; margin:0 auto; padding:14px; }
+
+  /* ===== 入力フォーム ===== */
+  #inputView .card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .card h2{ margin:0 0 12px; font-size:15px; color:var(--navy); display:flex; align-items:center; gap:7px; }
+  .card h2 .num{ width:24px; height:24px; border-radius:7px; background:var(--orange); color:#fff; font-size:13px;
+    display:inline-flex; align-items:center; justify-content:center; }
+  label.fld{ display:block; margin-bottom:14px; }
+  label.fld:last-child{ margin-bottom:0; }
+  label.fld > span{ display:block; font-size:13px; font-weight:700; color:var(--muted); margin-bottom:5px; }
+  input[type=text], input[type=date], textarea{ width:100%; padding:13px 12px; font-size:16px;
+    border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font-family:inherit; }
+  input:focus, textarea:focus{ outline:none; border-color:var(--orange); }
+  /* iOS Safari の date入力が右にはみ出す癖を抑える */
+  input[type=date]{ -webkit-appearance:none; appearance:none; min-width:0; max-width:100%;
+    text-align:left; display:block; }
+  textarea{ min-height:90px; resize:vertical; }
+
+  .checks{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .chk{ display:flex; align-items:center; gap:8px; padding:10px; border:1.5px solid var(--line);
+    border-radius:10px; font-size:14px; background:#fafbfd; }
+  .chk.on{ border-color:var(--orange); background:#fff6ee; color:var(--orange2); font-weight:700; }
+  .chk input[type=checkbox]{ width:18px; height:18px; accent-color:var(--orange); flex:none; }
+  .chk .chk-name{ flex:1; cursor:pointer; }
+  .chk .chk-del{ border:none; background:none; color:var(--muted); font-size:18px; line-height:1; cursor:pointer; padding:0 2px; flex:none; }
+  .chk .chk-del:hover{ color:var(--orange2); }
+  .add-work{ display:flex; gap:8px; margin-top:10px; }
+  .add-work input{ flex:1; }
+  .add-work button{ flex:none; padding:0 16px; border:none; border-radius:10px; background:var(--navy);
+    color:#fff; font-weight:700; font-size:14px; cursor:pointer; }
+
+  /* 写真は8枚ぶんのマスに入れる。空きマスを最初から見せておけば、
+     説明を書かなくても「ここに写真が入る」と分かる */
+  .photo-box{ border:1px solid var(--line); border-radius:12px; background:#fafbfd; padding:10px; }
+  .thumbs{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .slot{ aspect-ratio:4/3; border:1.5px dashed #cdd6e3; border-radius:8px; background:#fff; }
+  .photo-pick{ aspect-ratio:4/3; display:flex; align-items:center; justify-content:center;
+    border:1.5px dashed var(--navy2); border-radius:8px; background:#e8eefa; color:var(--navy);
+    cursor:pointer; position:relative; }
+  .photo-pick input[type=file]{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .photo-pick .big{ font-size:26px; line-height:1; }
+  .photo-count{ font-size:13px; color:var(--muted); margin:10px 2px 0; }
+  .photo-count b{ color:var(--orange2); }
+  .thumb{ position:relative; aspect-ratio:4/3; border-radius:8px; overflow:hidden; border:1px solid var(--line); }
+  .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb .del{ position:absolute; top:4px; right:4px; width:24px; height:24px; border:none; border-radius:50%;
+    background:rgba(20,49,94,.85); color:#fff; font-size:14px; cursor:pointer; }
+  .hint-note{ font-size:12px; color:var(--muted); margin:8px 2px 0; }
+  /* 写真の取り込み状況を必ず画面に出す（スマホはコンソールが見えないため） */
+  .photo-msg{ font-size:13px; line-height:1.6; margin:8px 2px 0; padding:8px 10px; border-radius:8px;
+              background:#fff7ed; border:1px solid #fed7aa; color:#7c2d12; display:none; }
+  .photo-msg.show{ display:block; }
+  .photo-msg.ok{ background:#f0fdf4; border-color:#bbf7d0; color:#14532d; }
+
+  /* 物件名サジェスト：入力欄に重ねて出す（画面の高さは変わらない） */
+  .fld{ display:block; margin-bottom:14px; }
+  .fld > .lbl{ display:block; font-size:13px; font-weight:700; color:var(--muted); margin-bottom:5px; }
+  .ac-wrap{ position:relative; }
+  .ac-list{ position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:40; background:#fff;
+    border:1.5px solid var(--navy2); border-radius:10px; box-shadow:0 8px 22px rgba(20,49,94,.18);
+    max-height:238px; overflow:auto; display:none; -webkit-overflow-scrolling:touch; }
+  .ac-item{ display:flex; align-items:center; gap:6px; padding:12px 8px 12px 12px; font-size:15px;
+    border-bottom:1px solid var(--line); cursor:pointer; }
+  .ac-item:last-child{ border-bottom:none; }
+  .ac-item .ac-txt{ flex:1; min-width:0; overflow-wrap:anywhere; }
+  /* 候補を消す×。指で確実に押せる大きさ(44px)と、押せると分かる見た目にする。
+     小さく色も薄いと「効かない・見つからない」と言われる（2026-08-26 現場報告） */
+  .ac-item .ac-del{ flex:none; width:44px; height:44px; margin:-8px 0; border:1px solid var(--line);
+    background:var(--bg2); color:#6b7280; font-size:19px; line-height:1; cursor:pointer; border-radius:10px;
+    display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
+  .ac-item .ac-del:active{ background:#fee2e2; border-color:#fca5a5; color:#b91c1c; }
+  /* 候補を消したときの一言。数秒で自然に消える */
+  .ac-note{ display:none; font-size:12.5px; color:#14532d; background:#f0fdf4; border:1px solid #bbf7d0;
+    border-radius:8px; padding:6px 10px; margin:8px 0 0; }
+  .ac-note.show{ display:block; }
+  /* 清掃日：入力欄の右に「今日」に戻すボタンを置く */
+  .date-row{ display:flex; gap:8px; align-items:stretch; }
+  .date-row input[type=date]{ flex:1; min-width:0; }
+  .date-today{ flex:none; padding:0 16px; font-size:14px; font-weight:700; cursor:pointer;
+    border:1.5px solid var(--line); border-radius:10px; background:var(--bg); color:var(--muted); }
+  .date-today.on{ border-color:var(--orange); background:#fff6ee; color:var(--orange2); }  /* 今日と違う日付の時だけ目立たせる */
+  /* 清掃日が「日本時間の今日」と違う時だけ出す注意書き */
+  .date-note{ display:none; font-size:12.5px; font-weight:700; color:#9a3412; background:#fff7ed;
+    border:1px solid #fed7aa; border-radius:8px; padding:6px 10px; margin:-8px 0 14px; }
+  .ac-item.fix{ background:#fff6ee; color:var(--orange2); font-weight:700; line-height:1.5; }
+  .ac-item.fix b{ display:block; font-size:11.5px; font-weight:800; color:#b3500a; margin-bottom:2px; }
+  .rp-lbl{ font-size:12px; font-weight:700; color:var(--muted); align-self:center; }
+  .nchip.rp{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* 清掃者ワンタップ */
+  .name-chips{ display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 2px; }
+  .nchip{ display:inline-flex; align-items:center; gap:5px; padding:8px 13px; border:1.5px solid var(--navy2);
+    border-radius:18px; background:#fff; color:var(--navy); font-size:14px; font-weight:700; cursor:pointer; }
+  .nchip.on{ background:#fff6ee; border-color:var(--orange); color:var(--orange2); }
+  /* チップの×。候補リストの×と同じく、押せると分かる大きさ・見た目にする（2026-08-26） */
+  .nchip .x{ flex:none; width:30px; height:30px; margin:-6px -8px -6px 2px; border:none; border-radius:50%;
+    background:rgba(20,49,94,.07); color:var(--muted); font-size:16px; line-height:1; cursor:pointer; padding:0;
+    display:inline-flex; align-items:center; justify-content:center; touch-action:manipulation; }
+  .nchip .x:active{ background:#fee2e2; color:#b91c1c; }
+  .name-save{ margin-top:8px; border:1.5px dashed var(--line); background:var(--bg); color:var(--navy);
+    border-radius:10px; padding:9px 14px; font-size:13px; font-weight:700; cursor:pointer; }
+
+  /* ===== プレビュー：実物レイアウト＋細線スパイス（A4 1枚） ===== */
+  #previewView{ display:none; }
+  /* 入力の自動保存を知らせる帯。ブラウザが落ちて戻された時にここで気づける */
+  /* 圏外のときに出る帯。作業は続けられることを伝える */
+  /* 物件一覧（普段は使わない）。目立たせず、しかし件数は常に見えるようにする */
+  .mst{ margin:18px 2px 4px; }
+  .mst-bar{ display:flex; align-items:center; width:100%; gap:8px; padding:10px 4px; border:none;
+    background:none; color:var(--muted); font-size:12.5px; cursor:pointer; text-align:left;
+    border-top:1px solid var(--line); }
+  .mst-bar .mst-caret{ margin-left:auto; font-size:15px; }
+  .mst-body{ padding:4px 4px 8px; }
+  .mst-help{ font-size:12.5px; color:var(--muted); line-height:1.7; margin:0 0 8px; }
+  .mst-body textarea{ width:100%; box-sizing:border-box; border:1.5px solid var(--line); border-radius:9px;
+    padding:9px 10px; font-size:13px; font-family:inherit; resize:vertical; }
+  .mst-btns{ display:flex; gap:8px; margin-top:8px; }
+  .mst-btns button{ flex:1; padding:10px; border-radius:9px; font-size:13.5px; font-weight:700; cursor:pointer; }
+  .mst-go{ border:none; background:var(--navy2); color:#fff; }
+  .mst-cl{ border:1.5px solid var(--line); background:#fff; color:var(--navy); }
+  .mst-msg{ font-size:12.5px; line-height:1.7; margin:9px 0 0; white-space:pre-wrap; display:none; }
+  .mst-msg.show{ display:block; }
+  .mst-msg.ok{ color:#14532d; }
+  .mst-msg.ng{ color:#b91c1c; }
+  .mst-del{ margin-top:10px; width:100%; padding:9px; border-radius:9px; cursor:pointer;
+    border:1px solid #fca5a5; background:#fff5f5; color:#b91c1c; font-size:12.5px; font-weight:700; }
+  .off-note{ display:none; align-items:center; gap:8px; margin-bottom:12px; padding:10px 12px;
+    border-radius:10px; background:#fef3c7; border:1px solid #fcd34d; color:#78350f; font-size:13px; line-height:1.6; }
+  .off-note.show{ display:flex; }
+  .draft-note{ display:none; align-items:center; gap:10px; margin-bottom:12px; padding:10px 12px;
+               border-radius:10px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e3a8a; font-size:13px; line-height:1.6; }
+  .draft-note.show{ display:flex; }
+  .draft-note button{ margin-left:auto; flex:none; border:1px solid #bfdbfe; background:#fff; color:#1e3a8a;
+                      border-radius:8px; padding:5px 10px; font-size:12px; cursor:pointer; }
+  /* A4を実寸(794px)で組み、スマホでは縮小して画面幅にフィットさせる */
+  .sheet-scale{ overflow:hidden; margin:0 auto; }
+  /* A4の縦横比(794:1123)に固定。中身を縦に積み、写真エリアが残りスペースを埋める＝常に締まった1枚 */
+  .sheet{ background:#fff; width:794px; height:1123px; overflow:hidden;
+    display:flex; flex-direction:column; padding:26px 64px 20px; transform-origin:top left;
+    box-shadow:0 4px 20px rgba(20,49,94,.12); border-radius:6px; }
+
+  /* タイトル中央＋細い青→オレンジ線（スパイス） */
+  .doc-title{ text-align:center; font-size:27px; font-weight:800; letter-spacing:.5em; color:var(--navy);
+    text-indent:.5em; }
+  .doc-title-line{ width:360px; max-width:80%; height:3px; margin:9px auto 0;
+    background:linear-gradient(90deg,var(--navy) 0%,var(--navy2) 50%,var(--orange) 100%); border-radius:2px; }
+
+  /* 見出し下の本体：左に項目、右に会社情報 */
+  .head-row{ display:flex; justify-content:space-between; gap:20px; margin-top:12px;
+    align-items:flex-start; }
+  .fields{ flex:none; }
+  .frow{ display:flex; align-items:baseline; gap:12px; margin-bottom:13px; }
+  .flabel{ font-size:15px; font-weight:700; color:var(--navy); letter-spacing:.5em;
+    width:92px; flex:none; text-align:justify; text-justify:inter-character; }
+  .fvalue{ width:240px; flex:none; font-size:18px; font-weight:700; color:var(--ink); padding:0 6px 4px;
+    border-bottom:1.5px solid var(--navy); height:1.6em; text-align:center;
+    white-space:nowrap; overflow:hidden; }
+  .fvalue.empty{ color:var(--muted); font-weight:400; border-bottom-color:var(--line); }
+  .fvalue.worker{ letter-spacing:.5em; text-indent:.5em; }
+
+  .company{ text-align:right; font-size:12px; line-height:1.65; color:var(--ink); width:270px; flex:none; }
+  .company .cname{ font-size:15.5px; font-weight:800; color:var(--navy); letter-spacing:.02em; }
+
+  /* 目視報告 */
+  .report-sec{ margin-top:11px; }
+  .sec-title{ font-size:16.5px; font-weight:800; color:var(--navy); letter-spacing:.3em;
+    padding-left:11px; border-left:5px solid var(--orange); margin-bottom:10px; }
+  /* 固定高さ。行が増えたらJSがフォントを縮めて必ず枠内に収める */
+  .report-lines{ height:108px; overflow:hidden; font-size:15.5px; }
+  .rline{ font-size:1em; line-height:1.55; color:var(--ink); padding:.2em 2px .32em;
+    border-bottom:1px solid var(--line); display:flex; gap:8px; min-height:1.55em; }
+  .rline::before{ content:"✓"; color:var(--orange2); font-weight:800; flex:none; }
+  .rline.free::before{ content:"・"; color:var(--navy2); }
+  .rline.blank::before{ content:""; }
+  .rtext{ flex:1; min-width:0; overflow-wrap:anywhere; }
+
+  /* 写真 2列×4段（実物どおり・小さめ＆中央寄せ）※A4 1枚に収まるサイズ */
+  /* 写真は常に4:3固定。列幅と行高はJS(layoutPhotos)が残りスペースに合わせて算出し、最大サイズで中央に並べる */
+  .pv-photos{ flex:1; min-height:0; display:grid; gap:12px 28px; margin-top:10px;
+    justify-content:center; align-content:flex-start; }
+  .pv-photo{ position:relative; aspect-ratio:4/3; border:1px solid var(--line); border-radius:4px;
+    overflow:hidden; background:var(--bg); }
+  .pv-photo img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .pv-photo.spare::after{ content:"予備"; position:absolute; top:5px; left:5px; font-size:10px;
+    background:rgba(255,255,255,.85); color:var(--muted); padding:1px 6px; border-radius:3px; }
+  .pv-photos .empty-ph{ grid-column:1/3; color:var(--muted); font-size:12px; text-align:center; padding:12px; }
+
+  .sheet-foot{ margin-top:14px; padding-top:9px; border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--muted); }
+  .sheet-foot .brandline{ color:var(--ink); font-weight:700; }
+  .sheet-foot .brandline .o{ color:inherit; }
+
+  .actions{ max-width:720px; margin:16px auto 30px; display:flex; flex-wrap:wrap; gap:10px; padding:0 14px; }
+  .actions button{ flex:1; padding:15px; font-size:15px; font-weight:800; border:none; border-radius:12px; cursor:pointer; color:#fff; }
+  .btn-pdf{ background:linear-gradient(135deg,var(--orange) 0%,var(--orange2) 100%); }
+  .btn-back{ background:var(--navy); }
+  .btn-save{ background:linear-gradient(135deg,#1fa85e 0%,#137a43 100%); flex-basis:100%; }
+  .print-hint{ flex-basis:100%; margin:2px 0 0; font-size:12px; color:var(--muted); text-align:center; line-height:1.5; }
+
+  /* ===== 送信完了パネル =====
+     送信のあと「終わった／次にいける」がひと目で分かるようにする。
+     1日に何件も回るので、今日すでに送った物件も並べて送り忘れ・二重送信を防ぐ。 */
+  .done-card{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:26px 18px 20px;
+    margin-top:16px; text-align:center; box-shadow:0 2px 12px rgba(0,0,0,.05); }
+  .done-mark{ font-size:44px; line-height:1; }
+  .done-title{ margin:10px 0 0; font-size:20px; font-weight:800; color:#137a43; }
+  .done-place{ margin:10px 0 0; font-size:17px; font-weight:800; color:var(--ink); word-break:break-all; }
+  .done-date{ margin:3px 0 0; font-size:13px; color:var(--muted); }
+  .sent-head{ margin:20px 0 8px; padding-top:14px; border-top:1px solid var(--line);
+    font-size:12px; font-weight:700; color:var(--muted); }
+  .sent-item{ display:flex; align-items:center; gap:8px; margin-bottom:5px; padding:8px 11px;
+    font-size:14px; text-align:left; background:var(--bg); border-radius:8px; }
+  .sent-item .ck{ flex:none; color:#1fa85e; font-weight:800; }
+  .sent-item.now{ background:#eafaf1; font-weight:700; }   /* いま送った1件 */
+  .btn-next-big{ width:100%; margin-top:20px; padding:17px; font-size:16px; font-weight:800; border:none;
+    border-radius:12px; color:#fff; cursor:pointer; background:linear-gradient(135deg,#5b6cff 0%,#3a45d6 100%); }
+  .done-again{ width:100%; margin-top:10px; padding:12px; font-size:14px; font-weight:700; cursor:pointer;
+    border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--muted); }
+  .done-note{ margin:12px 0 0; font-size:12px; color:var(--muted); line-height:1.6; }
+  .done-way{ margin:12px 0 0; padding:11px 13px; border-radius:10px; font-size:13px; line-height:1.6;
+    text-align:left; background:#fdeee2; color:#b3500a; border:1px solid #f7c9a3; }
+  /* 押す前に「共有シートが出るのか／保存になるのか」を知らせる一行 */
+  .share-way{ font-weight:700; }
+  .share-way.ok{ color:#137a43; }
+  .share-way.ng{ color:#b3500a; }
+
+  /* 文字が縮みすぎた時だけ出る警告 */
+  .page-warn{ max-width:720px; margin:12px auto 0; padding:11px 14px; border-radius:10px;
+    font-size:13px; font-weight:700; text-align:center; line-height:1.5;
+    background:#fdeee2; color:#b3500a; border:1px solid #f7c9a3; }
+
+  @media print{
+    @page{ size:A4; margin:0; }
+    html,body{ background:#fff; margin:0; padding:0; }
+    .toggle-bar, #inputView, .actions, .page-warn{ display:none !important; }
+    #previewView{ display:block !important; padding:0; }
+    .wrap{ padding:0; margin:0; max-width:none; }
+    .sheet-scale{ overflow:visible; height:auto !important; margin:0; }
+    /* iPhone等の印刷はプリンタ余白を勝手に確保する。写真サイズは維持しつつ各間隔を圧縮し、
+       さらに用紙1枚分に高さ上限(max-height)＋はみ出しclipで2枚目を物理的に断つ
+       （コメント欄の高さは印刷時JSが110pxに切替） */
+    .sheet{ box-shadow:none; border-radius:0; width:auto; max-height:268mm; overflow:hidden;
+      padding:4mm 12mm 4mm; transform:none !important; }
+    .head-row{ margin-top:3mm; }
+    .report-sec{ margin-top:2mm; break-inside:avoid; }
+    .pv-photos{ grid-template-columns:repeat(2,46mm); gap:1.5mm 12mm; margin-top:2.5mm; }
+    .pv-photo{ break-inside:avoid; }
+    .sheet-foot{ margin-top:2.5mm; padding-top:1.5mm; }
+  }
+</style>
+<script src="lib/html2canvas.min.js"></script>
+<script src="lib/jspdf.umd.min.js"></script>
+</head>
+<body>
+<script>
+(function(){
+  var P='PV_', S=Storage.prototype, g=S.getItem, s=S.setItem, r=S.removeItem;
+  S.getItem    = function(k){ return g.call(this, P+k); };
+  S.setItem    = function(k,v){ return s.call(this, P+k, v); };
+  S.removeItem = function(k){ return r.call(this, P+k); };
+})();
+</script>
+<div style="background:#b3500a;color:#fff;font-size:12px;font-weight:700;text-align:center;padding:6px 10px;letter-spacing:.02em;">検証用ページ（本番ではありません）</div>
+
+
+<div class="toggle-bar">
+  <button id="tabInput" class="active" onclick="switchView('input')">✏️ 入力</button>
+  <button id="tabPreview" onclick="switchView('preview')">👁 プレビュー</button>
+</div>
+
+<!-- ============ 入力 ============ -->
+<div id="inputView" class="wrap">
+
+  <p class="off-note" id="offNote">📶 電波がありません。入力・写真・PDF作成・保存はこのまま続けられます。LINEで送るのは電波の戻った場所で行ってください。</p>
+
+  <div class="draft-note" id="draftNote">
+    <span id="draftNoteText"></span>
+    <button type="button" onclick="clearDraft(true)">消す</button>
+  </div>
+
+
+  <div class="card">
+    <h2><span class="num">1</span>基本情報</h2>
+    <div class="fld">
+      <span class="lbl">清掃場所</span>
+      <div class="ac-wrap">
+        <input type="text" id="f_place" placeholder="物件名を入力" autocomplete="off"
+          oninput="render();onPlaceInput()" onfocus="onPlaceFocus()" onblur="onPlaceBlur()">
+        <div class="ac-list" id="acList"></div>
+      </div>
+      <p class="ac-note" id="acNote"></p>
+      <div class="name-chips" id="recentPlaces"></div>
+    </div>
+    <div class="fld"><span class="lbl">清掃日</span>
+      <div class="date-row">
+        <input type="date" id="f_date" oninput="markDateTouched();render()">
+        <button type="button" class="date-today" id="btnToday" onclick="setToday()">今日</button>
+      </div>
+    </div>
+    <p class="date-note" id="dateNote"></p>
+    <label class="fld"><span>清掃者</span>
+      <input type="text" id="f_worker" placeholder="例：佐藤" oninput="render();syncNameChips()"></label>
+    <div class="name-chips" id="nameChips"></div>
+    <button class="name-save" onclick="saveName()">＋ いまの名前を登録（次回からワンタップ）</button>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">2</span>作業内容（定番をタップ・追加削除可）</h2>
+    <div class="checks" id="checkList"></div>
+    <div class="add-work">
+      <input type="text" id="newWork" placeholder="項目を追加（例：高圧洗浄）" onkeydown="if(event.key==='Enter')addWork()">
+      <button onclick="addWork()">＋追加</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">3</span>特記事項・気づいた点（自由記入）</h2>
+    <label class="fld"><span>気づいた点・特記など（1行ずつ書くと罫線で並びます）</span>
+      <textarea id="f_notes" placeholder="例：駐車場 蜘蛛の巣・ツバメの巣 除去済み&#10;3F廊下 蛍光灯1本切れ → 管理会社へ要連絡"></textarea></label>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">4</span>写真（最大8枚・まとめて選択）</h2>
+    <div class="photo-box">
+      <div class="thumbs" id="thumbs"></div>
+      <!-- 写真を選ぶ本体。描画のたびに次の空きマスの位置へ動かす（要素ごと移動するので選択の仕組みは不変） -->
+      <label class="photo-pick" id="photoPick">
+        <span class="big">📷</span>
+        <input type="file" id="photoInput" accept="image/*" multiple onchange="addPhotos(this)">
+      </label>
+    </div>
+    <p class="photo-count">登録中：<b id="photoNum">0</b> / 8 枚　<span id="spareNote"></span></p>
+    <p class="photo-msg" id="photoMsg"></p>
+    <p class="hint-note">8枚を超える分は自動で受け付けません。8枚目は報告書で「予備」と表示されます。<br>
+      写真が入らないときは、いちど3〜4枚ずつに分けて選んでみてください。</p>
+  </div>
+
+  <!-- 普段は使わない設定。画面のいちばん下に1行だけ置き、件数がいつでも見えるようにする -->
+  <div class="mst" id="mstBox">
+    <button type="button" class="mst-bar" id="mstBar" onclick="toggleMst()">
+      <span id="mstSummary">物件一覧 未読み込み</span><span class="mst-caret" id="mstCaret">›</span>
+    </button>
+    <div class="mst-body" id="mstBody" style="display:none">
+      <p class="mst-help">まとめツールでコピーした文字を、下の欄に貼り付けてください。</p>
+      <textarea id="mstPaste" placeholder="ここに貼り付け" rows="3"></textarea>
+      <div class="mst-btns">
+        <button type="button" class="mst-go" onclick="importPlaceList(document.getElementById('mstPaste').value)">読み込む</button>
+        <button type="button" class="mst-cl" onclick="toggleMst(false)">閉じる</button>
+      </div>
+      <p class="mst-msg" id="mstMsg"></p>
+      <button type="button" class="mst-del" id="mstDel" onclick="clearPlaceList()" style="display:none">読み込んだ一覧を消す</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ プレビュー ============ -->
+<div id="previewView" class="wrap">
+  <div class="sheet-scale" id="sheetScale">
+  <div class="sheet" id="sheet">
+    <div class="doc-title">清掃報告書</div>
+    <div class="doc-title-line"></div>
+
+    <div class="head-row">
+      <div class="fields">
+        <div class="frow"><div class="flabel">清掃場所</div><div class="fvalue empty" id="pv_place">未入力</div></div>
+        <div class="frow"><div class="flabel">清掃日</div><div class="fvalue empty" id="pv_date">未入力</div></div>
+        <div class="frow"><div class="flabel">清掃者</div><div class="fvalue worker empty" id="pv_worker">未入力</div></div>
+      </div>
+      <div class="company">
+        <span class="cname">マスト管理 有限会社</span><br>
+        〒769-0103 高松市国分寺町福家甲1893-1<br>
+        TEL：087-883-8208<br>
+        香川県全域 対応
+      </div>
+    </div>
+
+    <div class="report-sec">
+      <div class="sec-title">作業内容・特記事項</div>
+      <div class="report-lines" id="pv_report"></div>
+    </div>
+
+    <div class="pv-photos" id="pv_photos">
+      <div class="empty-ph">写真が未登録です</div>
+    </div>
+
+    <div class="sheet-foot">
+      <div class="brandline">マスト<span class="o">管理</span> 有限会社 ｜ 香川県全域 対応</div>
+      <div>本報告書は作業完了後に作成しています</div>
+    </div>
+  </div>
+  </div>
+  <div class="page-warn" id="pageWarn" style="display:none;"></div>
+</div>
+
+<div class="actions" id="actions" style="display:none;">
+  <button class="btn-back" onclick="switchView('input')">← 入力にもどる</button>
+  <button class="btn-pdf" id="btnPdf" onclick="makePDF()">📄 PDFを作成</button>
+  <button class="btn-save" id="btnSave" onclick="sharePDF()" style="display:none;">📥 保存 / LINEで送る</button>
+  <p class="print-hint" id="pdfReady" style="display:none;">✅ PDFができました。「📥 保存 / LINEで送る」を押すと、ファイルに保存やグループLINEへの送信ができます。</p>
+  <p class="print-hint" id="pdfHint">「📄 PDFを作成」を押すと、A4・1枚のPDFを作ります（数秒かかります）。</p>
+  <p class="print-hint share-way" id="shareWay" style="display:none;"></p>
+</div>
+
+<!-- ============ 送信のあと ============ -->
+<div id="doneView" class="wrap" style="display:none;">
+  <div class="done-card">
+    <div class="done-mark" id="doneMark">✅</div>
+    <p class="done-title" id="doneTitle">送信しました</p>
+    <p class="done-place" id="donePlace"></p>
+    <p class="done-date" id="doneDate"></p>
+    <p class="done-way" id="doneWay" style="display:none;"></p>
+    <div id="sentList"></div>
+    <button class="btn-next-big" onclick="newReport()">🆕 次の報告書へ</button>
+    <button class="done-again" onclick="sharePDF()">もう一度送る</button>
+    <p class="done-note">LINEに届いていない時は「もう一度送る」を押してください。<br>今日の一覧は日付が変わると自動で消えます。</p>
+  </div>
+</div>
+
+<script>
+  const MAX_PHOTOS = 8;
+  let _pdfBlob=null, _pdfName='';   // 作成したPDFを保持し、共有ボタンの押下時に使う
+  // 作業内容は初期は空。使用者が追加した項目を端末(localStorage)に保存し、削除するまで次回も表示する
+  function loadWorks(){ try{ return (JSON.parse(localStorage.getItem('workItems')||'[]')).map(n=>({name:n,checked:false})); }catch(e){ return []; } }
+  function storeWorks(){ try{ localStorage.setItem('workItems', JSON.stringify(works.map(w=>w.name))); }catch(e){} }
+  let works = loadWorks();
+  let photos = [];        // 報告書に使う画像（長辺1100px）
+  let photoThumbs = [];   // 入力画面のサムネ用（長辺320px）。展開後のメモリが約1/12になる
+
+  /* 作業内容（定番タップ） */
+  function renderChecks(){
+    const box = document.getElementById('checkList'); box.innerHTML='';
+    works.forEach((w,i)=>{
+      const div=document.createElement('div');
+      div.className='chk'+(w.checked?' on':'');
+      div.innerHTML=`<input type="checkbox" ${w.checked?'checked':''} onchange="toggleWork(${i},this.checked)">
+        <span class="chk-name" onclick="this.previousElementSibling.click()">${esc(w.name)}</span>
+        <button class="chk-del" title="削除" onclick="delWork(${i})">×</button>`;
+      box.appendChild(div);
+    });
+  }
+  function toggleWork(i,c){ works[i].checked=c; renderChecks(); render(); saveDraft(); }
+  function delWork(i){ works.splice(i,1); storeWorks(); renderChecks(); render(); }
+  function addWork(){
+    const inp=document.getElementById('newWork'); const name=inp.value.trim(); if(!name)return;
+    works.push({name,checked:true}); storeWorks(); inp.value=''; renderChecks(); render();
+  }
+
+  /* ===== 写真の取り込み（2026-08-21 全面見直し。Galaxy A25 5Gの現場報告が発端） =====
+     症状＝8枚選んで確定すると1枚も入らず、エラーも出ないまま元の画面に戻る。
+     原因＝写真のメモリ量は「ファイルのMB」ではなく「横×縦×4バイト」で効く。
+     4080×3060の写真は2.65MBのJPEGでも展開すると約50MB。旧コードは8枚を同時に展開して
+     いたため約400MBを一度に要求し、ブラウザが力尽きていた。守るべき点は3つ：
+       1. 1枚ずつ順番に処理する（同時に展開する画像を常に1枚だけにする）
+       2. 展開する時点で縮めてもらう（createImageBitmapのresizeWidth。50MB→約6MB）
+       3. 1枚につき展開は1回だけ（サムネは縮小済みの画像から作る）
+     読めなかった写真は黙って捨てず、必ずファイル名つきで画面に理由を出す。
+     スマホはコンソールが見えないため、原因の切り分けは画面表示だけが頼りになる。 */
+  const photoMsgEl=()=>document.getElementById('photoMsg');
+  function photoMsg(text,ok){
+    const el=photoMsgEl(); if(!el) return;
+    el.textContent=text||'';
+    el.className='photo-msg'+(text?' show':'')+(ok?' ok':'');
+  }
+  let _photoBusy=false;
+  async function addPhotos(input){
+    const files=[...input.files];
+    input.value='';                      // 同じ写真をもう一度選び直せるよう、先に空にしておく
+    if(_photoBusy){ photoMsg('前の写真を読み込み中です。終わってからもう一度選んでください。'); return; }
+    if(!files.length){
+      photoMsg('写真を受け取れませんでした（0枚）。カメラアプリで撮った形式が原因のことがあります。'
+              +'枚数を減らして選び直すか、写真アプリでその写真を開いて「編集→完了」または「複製」してから選んでみてください。');
+      return;
+    }
+    const room=MAX_PHOTOS-photos.length;
+    if(room<=0){ photoMsg('写真は最大8枚までです。'); return; }
+    const take=files.slice(0,room);
+    const over=files.length-take.length;
+
+    _photoBusy=true;
+    let ng=0; const ngList=[];
+    for(let i=0;i<take.length;i++){
+      photoMsg('読み込み中… '+(i+1)+' / '+take.length+' 枚目');
+      let d=null, t=null;
+      try{ d=await shrinkPhoto(take[i], 1100, 0.82); }catch(e){ d=null; }
+      if(!d){
+        // 1回だけ間を置いて再挑戦。展開に失敗する原因の多くは一時的なメモリ不足で、
+        // 少し待つとブラウザが片付けを済ませて通ることがある
+        photoMsg('読み込み中… '+(i+1)+' / '+take.length+' 枚目（もう一度試しています）');
+        await new Promise(r=>setTimeout(r,700));
+        try{ d=await shrinkPhoto(take[i], 1100, 0.82); }catch(e){ d=null; }
+      }
+      // サムネは縮小済みの画像から作る。元の大きな写真をもう一度展開しないで済む
+      if(d){ try{ t=await shrinkFromData(d, 320, 0.7); }catch(e){ t=null; } }
+      if(d){ photos.push(d); photoThumbs.push(t||d); }
+      else { ng++; ngList.push(fileInfo(take[i])); }
+      renderThumbs();
+      await new Promise(r=>setTimeout(r,250));  // 1枚ごとに息継ぎ。ブラウザにメモリの後片付けをさせる
+    }
+    _photoBusy=false;
+    render();
+
+    const okCount=take.length-ng;
+    let m='';
+    if(over>0) m+='8枚を超える'+over+'枚は登録していません。';
+    if(ng>0)   m+=ng+'枚は読み込めませんでした：'+ngList.join(' / ')+'。'
+                 +'写真アプリでその写真を開いて「編集→完了」または「複製」をしてから選び直すと入ることがあります。';
+    if(m) photoMsg(m); else photoMsg(okCount+'枚を登録しました。', true);
+  }
+
+  /* すでに縮めた画像から、さらに小さいサムネを作る。元の大きな写真を展開し直さずに済む */
+  function shrinkFromData(dataUrl, MAX, q){
+    return new Promise(resolve=>{
+      const img=new Image();
+      img.onload=()=>{
+        const s=Math.min(1, MAX/Math.max(img.naturalWidth,img.naturalHeight));
+        const w=Math.max(1,Math.round(img.naturalWidth*s)), h=Math.max(1,Math.round(img.naturalHeight*s));
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        let out=null;
+        try{ c.getContext('2d').drawImage(img,0,0,w,h); out=c.toDataURL('image/jpeg',q); }catch(e){ out=null; }
+        c.width=1; c.height=1;
+        resolve(out);
+      };
+      img.onerror=()=>resolve(null);
+      img.src=dataUrl;
+    });
+  }
+
+  /* 読み込めなかった写真を特定するための手がかり。名前・大きさ・形式を並べる */
+  function fileInfo(f){
+    const mb=f && f.size ? (f.size/1048576).toFixed(1)+'MB' : 'サイズ不明';
+    const ty=(f && f.type) ? f.type : '形式不明';
+    return (f && f.name ? f.name : '名前不明')+'（'+mb+'／'+ty+'）';
+  }
+
+  /* 1枚を縮小してJPEGのデータに変える。軽い方法から順に段階的に試す */
+  function shrinkPhoto(file, MAX, q){
+    return new Promise(resolve=>{
+      const draw=(src,w0,h0,done)=>{
+        if(!w0||!h0){ done(null); return; }
+        const s=Math.min(1, MAX/Math.max(w0,h0));
+        const w=Math.max(1,Math.round(w0*s)), h=Math.max(1,Math.round(h0*s));
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        let out=null;
+        try{ c.getContext('2d').drawImage(src,0,0,w,h); out=c.toDataURL('image/jpeg',q); }catch(e){ out=null; }
+        c.width=1; c.height=1;            // 使い終わったcanvasを最小化してメモリを返す
+        done(out);
+      };
+      // 1) createImageBitmap：元ファイルを丸ごとコピーしないので一番メモリに優しい。
+      //    さらに大きな写真では「展開する時点で縮めて」と頼む。4080x3060の写真なら
+      //    展開量が約50MB→約6MBに減り、ここが今回の詰まりどころだった
+      if(window.createImageBitmap){
+        tryBitmap(file.size>1048576 ? {resizeWidth:MAX, resizeQuality:'high'} : null);
+      } else viaObjectURL();
+      function tryBitmap(opt){
+        let p=null;
+        try{ p = opt ? createImageBitmap(file,opt) : createImageBitmap(file); }catch(e){ p=null; }
+        if(!p){ viaObjectURL(); return; }
+        p.then(bmp=>{
+          draw(bmp,bmp.width,bmp.height,d=>{
+            try{ bmp.close(); }catch(e){}
+            if(d) resolve(d); else viaObjectURL();      // 描けなかった時は次の手段へ
+          });
+        }).catch(()=>{ if(opt) tryBitmap(null); else viaObjectURL(); });  // 縮小指定が使えない環境向け
+      }
+      // 2) 一時URL＋<img>：data URLと違い文字列に展開しないぶん軽い
+      function viaObjectURL(){
+        let url;
+        try{ url=URL.createObjectURL(file); }catch(e){ viaFileReader(); return; }
+        const img=new Image();
+        img.onload =()=>draw(img,img.naturalWidth,img.naturalHeight,d=>{ URL.revokeObjectURL(url); resolve(d); });
+        img.onerror=()=>{ URL.revokeObjectURL(url); viaFileReader(); };
+        img.src=url;
+      }
+      // 3) 最後の砦：昔ながらのFileReader方式。端末によってはこれだけ通る。
+      //    メモリを食うので普段は使わず、上の2つが両方だめだった1枚にだけ使う
+      function viaFileReader(){
+        const r=new FileReader();
+        r.onload=e=>{
+          const img=new Image();
+          img.onload =()=>draw(img,img.naturalWidth,img.naturalHeight,resolve);
+          img.onerror=()=>resolve(null);      // ここまで来て描けない＝ブラウザが対応しない形式
+          img.src=e.target.result;
+        };
+        r.onerror=()=>resolve(null);
+        try{ r.readAsDataURL(file); }catch(e){ resolve(null); }
+      }
+    });
+  }
+  function delPhoto(i){ photos.splice(i,1); photoThumbs.splice(i,1); renderThumbs(); render(); }
+  function renderThumbs(){
+    const n=photos.length;
+    document.getElementById('photoNum').textContent=n;
+    document.getElementById('spareNote').textContent = n>=MAX_PHOTOS ? '（8枚目＝予備）' : '';
+    const box=document.getElementById('thumbs'), pick=document.getElementById('photoPick');
+    // 常に8マス。前から順に「写真 → 撮影タイル → 空きマス」で埋める
+    box.innerHTML =
+      photoThumbs.map((d,i)=>
+        `<div class="thumb"><img src="${d}"><button class="del" onclick="delPhoto(${i})">×</button></div>`).join('')
+      + '<div class="slot"></div>'.repeat(Math.max(0, MAX_PHOTOS-n-1));
+    if(n<MAX_PHOTOS){
+      pick.style.display='';
+      box.insertBefore(pick, box.children[n]||null);   // 次の空きマスの位置へ移す
+    }else{
+      pick.style.display='none';                       // 8枚そろったら撮影タイルは出さない
+    }
+  }
+
+  /* ===== 物件名の候補（表記ゆれ防止） =====
+     ・過去に使った物件名を端末に記憶し、打った文字に合う候補だけを入力欄に重ねて表示（画面は伸びない）
+     ・同じ場所に 物件マスタ.json を置けば、その一覧も候補に加わる（無ければ何もしない）
+     ・打った名前が登録ずみの表記と実質同じなら、先頭で「登録ずみの書き方に合わせる」を提案 */
+  const LS_PLACES='must_place_history';
+  // 記憶の形は {n:物件名, y:読み(ひらがな)}。以前の「文字列だけ」の記録もそのまま読める
+  function loadPlaces(){
+    try{
+      return (JSON.parse(localStorage.getItem(LS_PLACES)||'[]'))
+        .map(x=> typeof x==='string' ? {n:x, y:''} : {n:String(x&&x.n||''), y:String(x&&x.y||'')})
+        .filter(o=>o.n);
+    }catch(e){ return []; }
+  }
+  function storePlaces(a){ try{ localStorage.setItem(LS_PLACES, JSON.stringify(a.slice(0,300))); }catch(e){} }
+  let masterPlaces=[];
+  // 照合用キー（まとめツールと同じ規則。全角/半角・空白・ハイフン違いを同じ物件とみなす）
+  /* ===== 番号の書き分けをそろえる =====
+     同じ建物でも「グレース5」「グレースV」「グレースⅤ」「グレース五」と書かれる。
+     全部おなじ 5 として扱えるよう、番号らしき部分を算用数字に直す。
+     ただし語の一部を壊さないよう、英字は「ひとかたまり全部がローマ数字の時だけ」直す
+     （ivy館 → そのまま、mixiビル → そのまま、グレースv → グレース5）。 */
+  const UNI_ROMAN = {'Ⅰ':1,'Ⅱ':2,'Ⅲ':3,'Ⅳ':4,'Ⅴ':5,'Ⅵ':6,'Ⅶ':7,'Ⅷ':8,'Ⅸ':9,'Ⅹ':10,'Ⅺ':11,'Ⅻ':12,
+                     'ⅰ':1,'ⅱ':2,'ⅲ':3,'ⅳ':4,'ⅴ':5,'ⅵ':6,'ⅶ':7,'ⅷ':8,'ⅸ':9,'ⅹ':10,'ⅺ':11,'ⅻ':12};
+  function intToRoman(n){
+    const tbl=[[10,'x'],[9,'ix'],[5,'v'],[4,'iv'],[1,'i']];
+    let out=''; for(const [v,r] of tbl){ while(n>=v){ out+=r; n-=v; } } return out;
+  }
+  function romanToInt(r){
+    const v={i:1,v:5,x:10}; let n=0;
+    for(let i=0;i<r.length;i++){ const c=v[r[i]], nx=v[r[i+1]]||0; n += (nx>c ? -c : c); }
+    return (n>0 && n<=39 && intToRoman(n)===r) ? n : 0;   // 正しい書き方のものだけ採用（iiii や vv は数字とみなさない）
+  }
+  const KANJI_NUM={'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9};
+  function kanjiToInt(k){                                  // 一〜九・十・十一〜九十九
+    if(KANJI_NUM[k]) return KANJI_NUM[k];
+    if(k==='十') return 10;
+    let m=k.match(/^([一二三四五六七八九])?十([一二三四五六七八九])?$/);
+    if(m) return (m[1]?KANJI_NUM[m[1]]:1)*10 + (m[2]?KANJI_NUM[m[2]]:0);
+    return 0;
+  }
+  function normKey(s){
+    let t=String(s||'');
+    // ローマ数字（Ⅴ）は NFKC でラテン文字 V に化けてしまうので、その前に算用数字へ直す
+    t=t.replace(/[Ⅰ-Ⅻⅰ-ⅻ]/g, c=>String(UNI_ROMAN[c]||c));
+    try{ t=t.normalize('NFKC'); }catch(e){}     // 全角英数→半角、半角カナ→全角
+    t=t.toLowerCase()
+      .replace(/[\s　]/g,'')                    // 空白（半角・全角）は無視
+      .replace(/[‐‑‒–—―−ｰ]/g,'-')             // ハイフン類を統一
+      .replace(/(\d)ー/g,'$1-')                 // 数字のあとの長音符はハイフンの打ち間違いとみなす
+      .replace(/[・･,、.。]/g,'')                // 中黒・句読点は無視
+      .replace(/[ぁ-ゖ]/g, c=>String.fromCharCode(c.charCodeAt(0)+0x60));  // ひらがな→カタカナ
+    t=t.replace(/[a-z]+/g, w=>{ const v=romanToInt(w); return v?String(v):w; });      // V → 5（語全体がローマ数字の時だけ）
+    t=t.replace(/[一二三四五六七八九十]+/g, w=>{ const v=kanjiToInt(w); return v?String(v):w; });  // 五 → 5
+    return t;
+  }
+
+  /* 候補の一覧。i＝この端末で最後に使った順番（0が直近／-1は使ったことがない＝物件マスタのみ） */
+  function allPlaces(){
+    const seen={}, out=[];
+    const hist=loadPlaces();
+    hist.map((o,i)=>({...o, i})).concat(masterPlaces.map(o=>({...o, i:-1}))).forEach(o=>{
+      const k=normKey(o.n); if(!o.n || !k) return;
+      if(!(k in seen)){ seen[k]=out.length; out.push({n:o.n, y:o.y, i:o.i}); }
+      else if(o.y && !out[seen[k]].y){ out[seen[k]].y=o.y; }   // 読みだけ後から補う
+    });
+    return out;
+  }
+  /* 同じ順位の中の並び：最後に出したのが古い物件を上に。
+     2週間で全物件を漏れなく回る運用のため、直前に出した物件＝次に必要になる可能性が最も低い。
+     使ったことがない物件（物件マスタ由来）は判断材料がないので最後に置く。 */
+  function byOld(a,b){
+    if(a.i<0 && b.i<0) return 0;
+    if(a.i<0) return 1;
+    if(b.i<0) return -1;
+    return b.i-a.i;
+  }
+  function rememberPlace(p, yomi){
+    p=String(p||'').trim(); if(!p) return;
+    const k=normKey(p), a=loadPlaces();
+    const old=a.find(o=>normKey(o.n)===k);
+    const y=String(yomi||'').trim() || (old ? old.y : '');     // 今回読みが取れなければ前回の読みを残す
+    const rest=a.filter(o=>normKey(o.n)!==k);
+    rest.unshift({n:p, y});
+    storePlaces(rest); renderDueChips();
+  }
+  // 検索用のキー。normKeyに加えて「ひらがな→カタカナ」「長音符・ハイフン無視」まで丸める。
+  // 変換前の未確定文字（例：ますと）でもカタカナの物件名（マストハイツ101）に当たるようにするため
+  function searchKey(s){
+    return normKey(s)
+      .replace(/[ぁ-ゖ]/g, c=>String.fromCharCode(c.charCodeAt(0)+0x60))
+      .replace(/[ー-]/g,'');
+  }
+  // 物件名そのものと「読み」の両方を探す＝漢字の物件名でも、ひらがなを打った段階で候補に出る
+  function hits(o, sq){ return searchKey(o.n).includes(sq) || (o.y && searchKey(o.y).includes(sq)); }
+  // 1文字目から候補を出すぶん、頭から一致するものを上に。同じ順位なら「最近使った順」のまま
+  function rank(o, sq){
+    if(searchKey(o.n).startsWith(sq)) return 0;
+    if(o.y && searchKey(o.y).startsWith(sq)) return 1;
+    return 2;
+  }
+  let _acRows=[], _acTimer=null, _acLastVal=null, _yomiSess='', _yomiBuf='';
+  function onPlaceInput(){
+    const q=val('f_place').trim(), nq=normKey(q), box=document.getElementById('acList');
+    let sq=searchKey(q);
+    _acLastVal=val('f_place');
+    if(!q) _yomiBuf='';                  // 欄を空にしたら読みも取り直す（前の物件の読みが混ざらないように）
+    const rows=[];
+    if(sq){
+      const all=allPlaces();
+      // ローマ字入力の途中（例：「まs」）で空振りしないよう、末尾の英字を落として探し直す
+      if(!all.some(o=>hits(o,sq))){ const s2=sq.replace(/[a-z]+$/,''); if(s2) sq=s2; }
+      const same=all.find(o=>normKey(o.n)===nq);
+      if(same && same.n!==q) rows.push({p:same.n, fix:true, del:same.i>=0});   // 表記だけ違う＝合わせる提案
+      all.filter(o=>o!==same && hits(o,sq))
+         .sort((a,b)=> rank(a,sq)-rank(b,sq) || byOld(a,b))
+         .slice(0,8)
+         .forEach(o=>rows.push({p:o.n, del:o.i>=0}));
+    }
+    _acRows=rows;
+    box.innerHTML=rows.map((r,i)=>
+      // mousedown で拾う＝入力欄のフォーカスが外れる前に確定。候補リストのスクロール中に誤選択もしない
+      `<div class="ac-item${r.fix?' fix':''}" onmousedown="event.preventDefault();pickPlace(${i})">`+
+        `<span class="ac-txt">${r.fix?'<b>登録ずみの書き方に合わせる</b>':''}${esc(r.p)}</span>`+
+        // ×＝この候補を端末の記憶から消す（打ち間違えた名前の後始末）。行の選択と取り違えないよう伝播を止める
+        // タッチ環境では mousedown が届かないことがあるため pointerdown で拾う。
+        // pointerdown で preventDefault すると mousedown も止まる＝行の選択と二重に動かない
+        (r.del?`<button class="ac-del" title="この候補を消す" aria-label="この候補を消す"
+           onpointerdown="event.preventDefault();event.stopPropagation();delPlace(${i})"
+           onmousedown="event.preventDefault();event.stopPropagation();delPlace(${i})">×</button>`:'')+
+      '</div>').join('');
+    box.style.display=rows.length?'block':'none';
+  }
+  let _delGuard=0;
+  function delPlace(i){
+    const now=Date.now();
+    if(now-_delGuard<400) return;          // pointerdown と mousedown の両方が届く環境での二重実行を防ぐ
+    _delGuard=now;
+    const r=_acRows[i]; if(!r) return;
+    const k=normKey(r.p);
+    storePlaces(loadPlaces().filter(o=>normKey(o.n)!==k));
+    renderDueChips(); onPlaceInput();      // 消したうえで候補を出し直す（入力欄のカーソルはそのまま）
+    photoMsgFlash('「'+r.p+'」を候補から消しました。');
+  }
+  /* 候補を消したことを画面で知らせる（消えたのか押せていないのか分からない、を防ぐ） */
+  function photoMsgFlash(text){
+    const el=document.getElementById('acNote'); if(!el) return;
+    el.textContent=text; el.classList.add('show');
+    clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'), 2600);
+  }
+  function pickPlace(i){
+    const r=_acRows[i]; if(!r) return;
+    document.getElementById('f_place').value=r.p;
+    _yomiBuf='';                       // 候補から選んだ＝読みは登録ずみのものを使う
+    closeAc(); render();
+  }
+  function closeAc(){ const b=document.getElementById('acList'); if(b) b.style.display='none'; }
+
+  /* 日本語変換中（未確定）でも候補を出す。
+     iOS Safari は変換中に input イベントを飛ばさないことがあるため、
+     変換イベントを直接拾いつつ、入力欄にいる間だけ値の変化も見張る（二重の保険）。 */
+  function onPlaceFocus(){
+    _acLastVal=val('f_place');
+    onPlaceInput();
+    if(_acTimer) clearInterval(_acTimer);
+    _acTimer=setInterval(()=>{ if(val('f_place')!==_acLastVal) onPlaceInput(); }, 150);
+  }
+  function onPlaceBlur(){
+    if(_acTimer){ clearInterval(_acTimer); _acTimer=null; }
+    setTimeout(closeAc,200);
+  }
+  /* 「読み」の自動記憶：漢字に変換される前のひらがなを拾っておき、物件名と一緒に覚える。
+     例）ぶんきょう→文京 と変換して「文京マンション」を作ると、読み「ぶんきょうまんしょん」も記録され、
+     次からは「ぶんきょう」と打った段階（変換前）で候補に出る。読みは検索にしか使わないので、
+     取りこぼしても実害はない（候補が出ないだけ＝今までと同じ）。 */
+  const KANA=/^[ぁ-んァ-ヶー]+$/;
+  (function(){
+    const el=document.getElementById('f_place');
+    el.addEventListener('compositionstart', ()=>{ _yomiSess=''; onPlaceInput(); });
+    el.addEventListener('compositionupdate', e=>{
+      if(e.data && KANA.test(e.data)) _yomiSess=e.data;   // 変換される前の最後のかなを覚える
+      onPlaceInput();
+    });
+    el.addEventListener('compositionend', e=>{
+      const kana = (e.data && KANA.test(e.data)) ? e.data : _yomiSess;
+      if(kana) _yomiBuf += kana;                          // 変換を何回かに分けても読みをつなぐ
+      _yomiSess=''; onPlaceInput();
+    });
+  })();
+  /* ワンタップのチップ＝「しばらく報告書を出していない物件」3件。
+     2週間で全物件を回るので、直前に出した物件より“間があいている物件”のほうが次に来る可能性が高い。 */
+  let _chipRows=[];
+  function renderDueChips(){
+    const hist=loadPlaces();
+    _chipRows=hist.slice(-3).reverse();          // 末尾＝最後に出したのが古い順
+    document.getElementById('recentPlaces').innerHTML = _chipRows.length
+      ? '<span class="rp-lbl">そろそろ：</span>'+_chipRows.map((o,i)=>
+          `<span class="nchip rp" onclick="useDueChip(${i})">${esc(o.n)}`+
+            `<button class="x" title="この物件を候補から消す" aria-label="この物件を候補から消す"`+
+            ` onpointerdown="event.preventDefault();event.stopPropagation();delDuePlace(${i})"`+
+            ` onmousedown="event.preventDefault();event.stopPropagation();delDuePlace(${i})">×</button>`+
+          `</span>`).join('')
+      : '';
+  }
+  /* 「そろそろ」から消す＝端末の記憶から消す。候補リストからも同時に消える */
+  function delDuePlace(i){
+    const now=Date.now();
+    if(now-_delGuard<400) return;              // pointerdown と mousedown の二重実行を防ぐ
+    _delGuard=now;
+    const o=_chipRows[i]; if(!o) return;
+    const k=normKey(o.n);
+    storePlaces(loadPlaces().filter(x=>normKey(x.n)!==k));
+    renderDueChips(); onPlaceInput();
+    photoMsgFlash('「'+o.n+'」を候補から消しました。');
+  }
+  function useDueChip(i){
+    const o=_chipRows[i]; if(!o) return;
+    document.getElementById('f_place').value=o.n; _yomiBuf=''; closeAc(); render();
+  }
+  /* ===== 物件一覧（まとめツールから配られる、正しい物件名の一覧） =====
+     この端末が自分で覚えた履歴とは別枠で持つ。混ぜないのは、
+     配られた一覧を消しても現場が入力してきた履歴が消えないようにするため。
+     公開URLに置くと誰でも読めてしまうので、LINE等で渡した文字列を貼り付けて取り込む方式にしている。 */
+  const LS_MASTER='must_place_master';
+  const LIST_TAG='MUST-BUKKEN/1';
+  function loadMaster(){
+    try{
+      const o=JSON.parse(localStorage.getItem(LS_MASTER)||'null');
+      if(!o||!Array.isArray(o.list)) return null;
+      return o;
+    }catch(e){ return null; }
+  }
+  function applyMaster(o){
+    masterPlaces = (o&&o.list||[]).map(n=>({n:String(n||'').trim(), y:''})).filter(x=>x.n);
+    renderMstBar(o);
+  }
+  function renderMstBar(o){
+    const el=document.getElementById('mstSummary'); if(!el) return;
+    if(o&&o.list&&o.list.length){
+      const d=new Date(o.t||Date.now());
+      el.textContent='物件一覧 '+o.list.length+'件・'+(d.getMonth()+1)+'/'+d.getDate()+' 更新';
+    }else{
+      el.textContent='物件一覧 未読み込み';
+    }
+    const del=document.getElementById('mstDel');
+    if(del) del.style.display = (o&&o.list&&o.list.length) ? 'block' : 'none';
+  }
+  function toggleMst(force){
+    const body=document.getElementById('mstBody'), caret=document.getElementById('mstCaret');
+    const open = (force===undefined) ? body.style.display==='none' : !!force;
+    body.style.display = open?'block':'none';
+    caret.textContent = open?'⌄':'›';
+    if(open) document.getElementById('mstPaste').focus();
+  }
+  function mstMsg(text, cls){
+    const el=document.getElementById('mstMsg'); if(!el) return;
+    el.textContent=text||''; el.className='mst-msg'+(text?' show ':' ')+(cls||'');
+  }
+  /* 貼り付けられた文字が物件一覧かどうかを見分ける。先頭の合図が無ければ何もしない */
+  function parsePlaceList(text){
+    const t=String(text||'').trim();
+    if(!t.startsWith(LIST_TAG)) return null;
+    const lines=t.split(/\r?\n/);
+    // 1行目「MUST-BUKKEN/1 90」の数字＝送り手が数えた件数。
+    // LINE等で文字が途中で切れても切れた文字列は一見正しく見えるので、この数で欠けを見破る
+    const m=lines[0].match(/^\S+\s+(\d+)\s*$/);
+    const expect = m ? +m[1] : null;
+    const names=lines.slice(1).map(x=>x.trim()).filter(Boolean);
+    const seen=new Set(), out=[];
+    names.forEach(n=>{ const k=normKey(n); if(k && !seen.has(k)){ seen.add(k); out.push(n); } });
+    return { list:out, expect };
+  }
+  function importPlaceList(text){
+    const parsed=parsePlaceList(text);
+    if(!parsed){
+      mstMsg('物件一覧の文字ではないようです。まとめツールの「物件一覧をコピー」で出てきた文字を、そのまま貼り付けてください。','ng');
+      return false;
+    }
+    const list=parsed.list;
+    if(!list.length){ mstMsg('物件名が1件も入っていませんでした。','ng'); return false; }
+    // 送り手が数えた件数より少なければ、貼り付けた文字が途中で切れている
+    if(parsed.expect!==null && list.length < parsed.expect){
+      mstMsg('⚠️ '+parsed.expect+'件あるはずですが、'+list.length+'件しか読み取れませんでした。\n'
+            +'貼り付けた文字が途中で切れています。読み込まずに中止しました。'
+            +'もう一度コピーし直すか、送り主に分けて送ってもらってください。','ng');
+      return false;
+    }
+    const before=new Set(masterPlaces.map(o=>normKey(o.n)));
+    const added=list.filter(n=>!before.has(normKey(n))).length;
+    const o={list, t:Date.now()};
+    try{ localStorage.setItem(LS_MASTER, JSON.stringify(o)); }catch(e){}
+    applyMaster(o);
+    document.getElementById('mstPaste').value='';
+    mstMsg('✅ '+list.length+'件を読み込みました'+(added?'（うち新しい物件 '+added+'件）':'（内容は前回と同じでした）')+'。物件名の欄に候補として出ます。','ok');
+    onPlaceInput();
+    return true;
+  }
+  function clearPlaceList(){
+    if(!confirm('読み込んだ物件一覧を消しますか？\n（この端末が自分で覚えた物件名は消えません）')) return;
+    try{ localStorage.removeItem(LS_MASTER); }catch(e){}
+    applyMaster(null);
+    mstMsg('読み込んだ一覧を消しました。','');
+  }
+  applyMaster(loadMaster());
+
+  /* 近道：清掃場所の欄に一覧を貼り付けても取り込む。
+     合図で始まる文字にしか反応しないので、普通の物件名を打っても誤作動しない */
+  document.getElementById('f_place').addEventListener('paste', e=>{
+    const t=(e.clipboardData||window.clipboardData);
+    const text=t?t.getData('text'):'';
+    if(!text || !String(text).trim().startsWith(LIST_TAG)) return;
+    e.preventDefault();
+    toggleMst(true);
+    if(importPlaceList(text)){ document.getElementById('mstBox').scrollIntoView({block:'center'}); }
+  });
+
+  /* 清掃者の名前プリセット（端末内localStorageに保存） */
+  function loadNames(){ try{ return JSON.parse(localStorage.getItem('cleanerNames')||'[]'); }catch(e){ return []; } }
+  function storeNames(a){ try{ localStorage.setItem('cleanerNames', JSON.stringify(a)); }catch(e){} }
+  function renderNameChips(){
+    const cur=val('f_worker').trim();
+    document.getElementById('nameChips').innerHTML = loadNames().map((n,i)=>
+      `<span class="nchip ${n===cur?'on':''}" onclick="pickName(${i})">${esc(n)}<button class="x" onclick="delName(${i});event.stopPropagation();">×</button></span>`
+    ).join('');
+  }
+  function pickName(i){ const n=loadNames()[i]; if(n==null)return; document.getElementById('f_worker').value=n; render(); renderNameChips(); }
+  function saveName(){ const v=val('f_worker').trim(); if(!v){ alert('先に清掃者名を入力してください。'); return; }
+    let a=loadNames(); if(!a.includes(v)){ a.unshift(v); a=a.slice(0,8); storeNames(a); } renderNameChips(); }
+  function delName(i){ let a=loadNames(); a.splice(i,1); storeNames(a); renderNameChips(); }
+  function syncNameChips(){ renderNameChips(); }
+
+  function switchView(v){
+    const input=v==='input';
+    document.getElementById('doneView').style.display='none';     // タブを押したら完了パネルは閉じる
+    document.getElementById('inputView').style.display=input?'block':'none';
+    document.getElementById('previewView').style.display=input?'none':'block';
+    document.getElementById('actions').style.display=input?'none':'flex';
+    document.getElementById('tabInput').classList.toggle('active',input);
+    document.getElementById('tabPreview').classList.toggle('active',!input);
+    if(!input){
+      // プレビューに来るたびPDF状態を初期化（内容変更後の古いPDFを無効化し、作成ボタンに戻す）
+      _pdfBlob=null;
+      document.getElementById('btnPdf').style.display='';
+      document.getElementById('btnSave').style.display='none';
+      document.getElementById('pdfReady').style.display='none';
+      document.getElementById('shareWay').style.display='none';
+      document.getElementById('pdfHint').style.display='';
+      refreshDate();                  // プレビューに来るたび清掃日を日本時間の今日に取り直す
+      render(); scaleSheet();
+    }
+    window.scrollTo(0,0);
+  }
+
+  /* A4(794px)をスマホ画面幅に縮小フィット */
+  function scaleSheet(){
+    const sheet=document.getElementById('sheet');
+    const scaleWrap=document.getElementById('sheetScale');
+    if(!sheet||!scaleWrap||document.getElementById('previewView').style.display==='none') return;
+    // 縮小の基準は「枠自身の内側幅」。親のpadding込み幅を使うと用紙が画面からはみ出し右端(会社情報)が切れる
+    const avail=scaleWrap.clientWidth;
+    const s=Math.min(1, avail/794);
+    fitReport();
+    layoutPhotos();
+    sheet.style.transform='scale('+s+')';
+    scaleWrap.style.height=(sheet.offsetHeight*s)+'px';
+  }
+
+  /* 作業内容欄が固定枠を超えたら、収まるまでフォントを段階縮小（行間もem連動で縮む）
+     printMode=true のときは印刷用の低い枠(110px)に切り替えて再フィット＝A4・1枚に必ず収める */
+  const PRINT_LINES_H = 110;
+  function fitReport(printMode){
+    const box=document.getElementById('pv_report'); if(!box) return;
+    box.style.height = printMode ? PRINT_LINES_H+'px' : '';
+    let fs=15.5; box.style.fontSize=fs+'px';
+    const min = printMode ? 6 : 9;
+    while(box.scrollHeight > box.clientHeight && fs > min){ fs-=0.5; box.style.fontSize=fs+'px'; }
+    // フォントが縮小限界近く（≦9px）まで下がった時だけ＝本当に長すぎる時だけ警告（画面表示時のみ）
+    const warn=document.getElementById('pageWarn'); if(!warn || printMode) return;
+    if(fs <= 9){
+      warn.style.display='block';
+      warn.textContent='⚠️ 作業内容・特記事項が長く、文字がかなり小さくなっています。読みやすさのため、文章を短くするか写真を減らすのがおすすめです。';
+    } else { warn.style.display='none'; }
+  }
+
+  /* 写真は4:3固定。写真サイズと位置は枚数に関わらず常に一定にする（複数枚を見比べた時に揃うよう固定）。
+     常に4段(rows=4)分のサイズで算出し、上詰めで配置する。 */
+  function layoutPhotos(){
+    const box=document.getElementById('pv_photos');
+    if(!box || !photos.length) return;
+    const rg=12, cg=96;                                   // 写真間の縦・横の隙間(px)
+    const rows=4;                                         // 常に4段分で固定（枚数が減っても写真サイズは変えない）
+    const availH=box.clientHeight, innerW=box.clientWidth;
+    if(availH<=0 || innerW<=0) return;
+    let cellH=(availH-(rows-1)*rg)/rows;                  // 写真エリア高さを常に4段で割る
+    let cellW=cellH*4/3;
+    if(2*cellW+cg > innerW) cellW=(innerW-cg)/2;          // 横にあふれる時だけ幅基準に
+    box.style.columnGap=cg+'px';                          // 実際の列の隙間にも反映
+    box.style.gridTemplateColumns='repeat(2, '+Math.floor(cellW)+'px)';
+  }
+
+  /* ブラウザの印刷機能を使わず、報告書を画像化してA4 1枚のPDFを直接生成する。
+     これにより iOS Safari が付けるURL/日付/ページ番号が一切入らず、必ず1枚に収まる。 */
+  async function makePDF(){
+    refreshDate(); render();          // 用紙に焼き付ける直前に、もう一度その時点の日本時間の今日を取り直す
+    const btn=document.getElementById('btnPdf');
+    const old=btn.textContent; btn.disabled=true; btn.textContent='PDFを作成中…';
+    document.getElementById('btnSave').style.display='none';
+    document.getElementById('pdfReady').style.display='none';
+    try{
+      const sheet=document.getElementById('sheet');
+      const prevT=sheet.style.transform;
+      sheet.style.transform='none';      // 画面用の縮小を解いて実寸でキャプチャ
+      fitReport(false);
+      layoutPhotos();
+      const canvas=await html2canvas(sheet,{ scale:2, backgroundColor:'#ffffff', useCORS:true });
+      sheet.style.transform=prevT; scaleSheet();
+      const { jsPDF }=window.jspdf;
+      const pdf=new jsPDF('p','mm','a4');
+      // まとめツールでの並び替え用に、清掃日と物件名をPDF内部に埋め込む（不可視・LINEでファイル名が変わっても残る）
+      pdf.setProperties({
+        title: document.title,
+        subject: (val('f_date')||'').replace(/-/g,''),   // 清掃日 YYYYMMDD
+        keywords: val('f_place').trim()                  // 物件名
+      });
+      const PW=210, PH=297, M=7;                     // A4サイズと、上下左右に確保する余白(mm)
+      const AW=PW-2*M, AH=PH-2*M;                     // 余白を除いた配置可能エリア
+      let w=AW, h=AW*canvas.height/canvas.width;      // まず幅基準。はみ出す高さは縮小フィット
+      if(h>AH){ h=AH; w=AH*canvas.width/canvas.height; }
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',(PW-w)/2,(PH-h)/2,w,h);  // 上下左右を均等に中央配置
+      // ファイル名は「物件名_年月日」だけにする（両方空のときだけ「清掃報告書」にフォールバック）
+      const _pn=[val('f_place').trim(), (val('f_date')||'').replace(/-/g,'')].filter(Boolean).join('_');
+      _pdfName=(_pn||'清掃報告書')+'.pdf';
+      _pdfBlob=pdf.output('blob');
+      rememberPlace(val('f_place'), _yomiBuf);   // 実際に報告書にした物件名だけを読みつきで記憶する
+      // PDFができたら「作成」ボタンは隠し、「保存/LINEで送る」だけにする（作成ボタンの二重表示を解消）
+      btn.style.display='none';
+      document.getElementById('pdfHint').style.display='none';
+      document.getElementById('btnSave').style.display='block';
+      document.getElementById('pdfReady').style.display='block';
+      renderShareWay();                 // 押す前に「共有シートが出るのか／保存になるのか」を知らせる
+    }catch(e){ alert('PDF作成に失敗しました：'+(e&&e.message||e)); }
+    btn.disabled=false; btn.textContent=old;
+  }
+
+  /* ===== 送信の経路を押す前に知らせる =====
+     「LINEアプリに移る時と移らない時がある」の切り分け用。
+     iPhoneで共有シートが使えるのは https の時だけ。使えない場合（httpの検証用サーバー、
+     一部のアプリ内ブラウザ等）は端末への保存に切り替わり、LINEに移らないので
+     「送れなかった」ように見える。どちらになるかを押す前に一行で出しておく。 */
+  function canShareFile(){
+    try{
+      const t=new File([new Blob(['x'],{type:'application/pdf'})],'t.pdf',{type:'application/pdf'});
+      return !!(navigator.share && navigator.canShare && navigator.canShare({files:[t]}));
+    }catch(e){ return false; }
+  }
+  function shareWhere(){
+    const ua=navigator.userAgent;
+    if(window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true) return 'ホーム画面';
+    if(/Line\//i.test(ua)) return 'LINE内ブラウザ';
+    return 'ブラウザ';
+  }
+  function renderShareWay(){
+    const el=document.getElementById('shareWay'); if(!el) return;
+    const ok=canShareFile(), where=shareWhere();
+    el.className='print-hint share-way '+(ok?'ok':'ng');
+    el.textContent = ok
+      ? '送信方法：共有シート（LINEを選んで送れます）　［'+where+'］'
+      : '⚠️ この画面ではLINEに直接送れません。押すと端末への保存になります　［'+where
+        + (window.isSecureContext?'':'・保護されていない接続') + '］';
+    el.style.display='block';
+  }
+
+  /* 作成済みPDFを共有（iOSの共有シート＝ファイルに保存・LINE送信が出る）。
+     非対応端末ではダウンロードにフォールバック。保存はこのボタン押下が起点なので確実に動く。 */
+  let _shareMode='';
+  async function sharePDF(){
+    if(!_pdfBlob) return;
+    const file=new File([_pdfBlob], _pdfName, {type:'application/pdf'});
+    try{
+      _shareMode='share';
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        // title は一旦戻した（2026-08-15）。titleを外したところ、iPhoneの共有シートから
+        // LINEのアイコン自体が消えて送信できなくなったため。titleがあるとiOSでは
+        // 「ファイル名だけのメッセージ」が余分に1通届くが、送れないより実害が小さいのでこちらを優先。
+        // 原因の切り分け中： /share-test.html で実機の挙動を確認する
+        await navigator.share({ files:[file], title:_pdfName });
+      }else{
+        _shareMode='download';                       // 共有シートが使えず、端末への保存になった
+        const url=URL.createObjectURL(_pdfBlob);
+        const a=document.createElement('a'); a.href=url; a.download=_pdfName; a.click();
+        setTimeout(()=>URL.revokeObjectURL(url),10000);
+      }
+      showDone();      // 送信までいけたら完了パネルへ切り替える（キャンセル時はここに来ない）
+    }catch(e){ /* ユーザーが共有をキャンセルした場合などは何もしない */ }
+  }
+
+  /* ===== 送信のあとの画面 =====
+     以前は緑の案内文が出たまま下に「次の報告書へ」が増えるだけで、送れたのか分かりにくかった。
+     送信できたら用紙を隠して完了パネルに切り替え、画面の一番上へ戻す。
+     1日に何件も回るので、今日すでに送った物件名も並べる（送り忘れ・二重送信よけ）。 */
+  const LS_SENT='must_sent';
+  function loadSent(){
+    try{
+      const o=JSON.parse(localStorage.getItem(LS_SENT)||'null');
+      return (o && o.d===todayJST() && Array.isArray(o.list)) ? o.list : [];   // 日付が変わったら空に戻る
+    }catch(e){ return []; }
+  }
+  function addSent(name){
+    const n=(name||'').trim(); if(!n) return loadSent();
+    const list=loadSent().filter(x=>x!==n);           // 同じ物件を送り直した時は重複させず、一番下に置き直す
+    list.push(n);
+    try{ localStorage.setItem(LS_SENT, JSON.stringify({ d:todayJST(), list })); }catch(e){}
+    return list;
+  }
+  function showDone(){
+    const place=val('f_place').trim();
+    const list=addSent(place);
+    const sent=(_shareMode!=='download');
+    document.getElementById('doneMark').textContent  = sent?'✅':'📥';
+    document.getElementById('doneTitle').textContent = sent?'送信しました':'端末に保存しました';
+    const way=document.getElementById('doneWay');
+    way.style.display = sent?'none':'block';
+    way.textContent   = sent?'' :
+      'この画面ではLINEに直接送れないため、PDFを端末に保存しました。'
+      +'LINEアプリを開いて、保存したPDFを選んで送ってください。'
+      +'（ホーム画面のアイコンから開き直すと、次からは共有シートでそのまま送れます）';
+    document.getElementById('donePlace').textContent = place || '（物件名なし）';
+    document.getElementById('doneDate').textContent  = fmtDate(val('f_date'));
+    document.getElementById('sentList').innerHTML =
+      '<p class="sent-head">今日の送信 '+list.length+'件</p>' +
+      list.map(n=>`<div class="sent-item${n===place?' now':''}"><span class="ck">✓</span>${esc(n)}</div>`).join('');
+    document.getElementById('inputView').style.display='none';
+    document.getElementById('previewView').style.display='none';
+    document.getElementById('actions').style.display='none';
+    document.getElementById('doneView').style.display='block';
+    // 完了パネル中はどちらのタブも選択中に見せない（押せば入力/プレビューに戻れる）
+    document.getElementById('tabInput').classList.remove('active');
+    document.getElementById('tabPreview').classList.remove('active');
+    window.scrollTo(0,0);                              // ボタンを探さなくて済むよう一番上へ
+  }
+
+  /* 次の報告書へ：清掃日・清掃者はそのまま引き継ぎ、清掃場所・特記事項・写真・作業内容のチェックを
+     クリアして入力画面に戻る。保存後に出るボタンなのでPDFは保存済み＝確認ダイアログなしで即クリア。 */
+  function newReport(){
+    document.getElementById('f_place').value='';
+    _yomiBuf=''; closeAc();
+    document.getElementById('f_notes').value='';
+    photos=[]; photoThumbs=[];
+    photoMsg('');
+    clearDraft(true);            // 1件終わったので控えは破棄
+    works.forEach(w=>w.checked=false);   // 作業内容は項目リストは残し、チェックだけ外す
+    renderChecks();
+    renderThumbs();
+    _pdfBlob=null;
+    refreshDate();                    // 引き継いだ清掃日も、手直ししていなければ今日に合わせ直す
+    render();
+    switchView('input');
+    document.getElementById('f_place').focus();   // すぐ次の物件名を打てるようカーソルを合わせる
+  }
+  window.addEventListener('resize', scaleSheet);
+
+  function fmtDate(v){ if(!v)return '';
+    const d=new Date(v+'T00:00:00'); const wd=['日','月','火','水','木','金','土'][d.getDay()];
+    return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${wd}）`; }
+
+  function setField(id,v){
+    const e=document.getElementById(id);
+    if(v){ e.textContent=v; e.classList.remove('empty'); }
+    else { e.textContent='未入力'; e.classList.add('empty'); }
+    // 物件名などが長くても枠内に1行で収める（フォントだけ縮小、レイアウト高さは固定のまま）
+    e.style.fontSize=''; let fs=18;
+    while(e.scrollWidth>e.clientWidth && fs>10){ fs-=0.5; e.style.fontSize=fs+'px'; }
+  }
+
+  function render(){
+    setField('pv_place', val('f_place'));
+    setField('pv_date', fmtDate(val('f_date')));
+    setField('pv_worker', val('f_worker'));
+
+    // PDF保存時のファイル名＝ページタイトルになるため「清掃報告書_物件名_日付」に揃える（半月分まとめ送付の整理用）
+    const p=val('f_place').trim(), d=val('f_date');
+    document.title = (p||d) ? `清掃報告書_${p||'物件名未入力'}_${(d||'').replace(/-/g,'')}` : '清掃報告書｜マスト管理 有限会社';
+
+    // 作業内容・特記事項：チェック項目（済み）＋自由記入の各行。最低5行の罫線を用意
+    const lines=[];
+    works.filter(w=>w.checked).forEach(w=> lines.push({t:'chk', text:w.name}));
+    val('f_notes').split('\n').map(s=>s.trim()).filter(s=>s).forEach(s=> lines.push({t:'free', text:s}));
+    while(lines.length < 5) lines.push({t:'blank', text:''});
+    const box=document.getElementById('pv_report');
+    box.innerHTML = lines.map(l=>
+      `<div class="rline ${l.t==='free'?'free':(l.t==='blank'?'blank':'')}"><span class="rtext">${esc(l.text)}</span></div>`).join('');
+
+    // 写真（8枚目は予備ラベル）
+    const pbox=document.getElementById('pv_photos');
+    pbox.innerHTML = photos.length
+      ? photos.map((d,i)=>`<div class="pv-photo ${i===7?'spare':''}"><img src="${d}"></div>`).join('')
+      : `<div class="empty-ph">写真が未登録です</div>`;
+  }
+
+  /* ===== 入力の自動保存 =====
+     写真の選択中にブラウザがメモリ不足でタブを落とすと、戻ってきた時に画面が初期化される。
+     打ち込んだ内容が消えないよう、文字の入力は常に端末に控えておき、復元したら帯で知らせる。
+     （写真は容量が大きく保存できないため、復元の対象外） */
+  const LS_DRAFT='must_draft';
+  let _draftTimer=null;
+  function draftData(){
+    return { place:val('f_place'), date:val('f_date'), worker:val('f_worker'), notes:val('f_notes'),
+             checked:works.filter(w=>w.checked).map(w=>w.name), dateTouched:_dateTouched, t:Date.now() };
+  }
+  function saveDraft(){
+    const d=draftData();
+    if(!d.place && !d.notes && !d.checked.length){ try{ localStorage.removeItem(LS_DRAFT); }catch(e){} return; }
+    try{ localStorage.setItem(LS_DRAFT, JSON.stringify(d)); }catch(e){}
+  }
+  function saveDraftSoon(){ clearTimeout(_draftTimer); _draftTimer=setTimeout(saveDraft,400); }
+  function clearDraft(hideNote){
+    clearTimeout(_draftTimer);
+    try{ localStorage.removeItem(LS_DRAFT); }catch(e){}
+    if(hideNote) document.getElementById('draftNote').classList.remove('show');
+  }
+  function restoreDraft(){
+    let d=null;
+    try{ d=JSON.parse(localStorage.getItem(LS_DRAFT)||'null'); }catch(e){ d=null; }
+    if(!d) return;
+    if(Date.now()-(d.t||0) > 12*60*60*1000){ clearDraft(); return; }   // 半日以上前の控えは使わない
+    if(d.place) document.getElementById('f_place').value=d.place;
+    // 日付は「手で直した」控えだけ戻す。自動で入っていた日付は戻さず、あとで今日の日付に入れ直す
+    if(d.date && d.dateTouched){ document.getElementById('f_date').value=d.date; _dateTouched=true; }
+    if(d.worker)document.getElementById('f_worker').value=d.worker;
+    if(d.notes) document.getElementById('f_notes').value=d.notes;
+    if(d.checked&&d.checked.length) works.forEach(w=>{ if(d.checked.includes(w.name)) w.checked=true; });
+    const mm=Math.round((Date.now()-(d.t||Date.now()))/60000);
+    document.getElementById('draftNoteText').textContent =
+      '前回の入力を復元しました（'+(mm<1?'たった今':mm+'分前')+'の内容）。写真は復元できないので選び直してください。';
+    document.getElementById('draftNote').classList.add('show');
+  }
+
+  function val(id){ const e=document.getElementById(id); return e?e.value:''; }
+  function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+  /* ===== 清掃日は「日本時間の今日」を入れ直す =====
+     これまでの不具合（2026-08-31 修正）：
+      1. valueAsDate に new Date() を入れていた。valueAsDate は日付を世界標準時(UTC)として読むため、
+         日本時間の朝9時前に開くと必ず前日が入った（8:51に起動 → 前日の日付）。
+      2. しかも起動時に一度入れるだけだったので、アプリを開きっぱなしだと古い日付が残り続けた
+         （同じ起動のまま10:49に2件目を作っても前日のまま）。
+     対策：日本時間の日付を文字列で作り、プレビューを開く時・PDFを作る時・アプリに戻った時に取り直す。
+     ただし清掃者が自分で日付を直した時（前日分をあとで作る等）は、その日付を尊重して書き換えない。 */
+  function todayJST(){
+    try{
+      // en-CA は YYYY-MM-DD 形式。端末の時計が海外時刻に設定されていても日本時間で判定できる
+      return new Intl.DateTimeFormat('en-CA',{ timeZone:'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
+    }catch(e){
+      const d=new Date(Date.now()+9*60*60*1000);          // 予備：世界標準時に9時間足して日本時間にする
+      const p=n=>String(n).padStart(2,'0');
+      return d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate());
+    }
+  }
+  let _dateTouched=false;                                  // 清掃日を手で直したか（直した日付は勝手に書き換えない）
+  function markDateTouched(){ _dateTouched=true; dateNote(); }
+  function setToday(){                                     // 「今日」ボタン：日付を今日に戻し、自動更新も再開する
+    _dateTouched=false;
+    document.getElementById('f_date').value=todayJST();
+    dateNote(); render(); saveDraft();
+  }
+  function refreshDate(){                                  // 手つかずなら、その時点の日本時間の今日に入れ直す
+    const e=document.getElementById('f_date'); if(!e) return;
+    const t=todayJST();
+    if((!_dateTouched || !e.value) && e.value!==t) e.value=t;
+    dateNote();
+  }
+  function dateNote(){                                     // 今日と違う日付のままなら気づけるように出す
+    const n=document.getElementById('dateNote'); if(!n) return;
+    const v=val('f_date'), t=todayJST();
+    const b=document.getElementById('btnToday');
+    if(v && v!==t){
+      const a=t.split('-');
+      n.textContent='※ 清掃日が今日（'+Number(a[1])+'/'+Number(a[2])+'）ではありません。あとから作る報告書ならこのままで大丈夫です。';
+      n.style.display='block';
+      if(b) b.classList.add('on');                         // 今日に戻せることが分かるよう色を付ける
+    }else{
+      n.style.display='none';
+      if(b) b.classList.remove('on');
+    }
+  }
+
+  renderNameChips(); renderDueChips();
+  /* オフラインで使えるようにする保管係を登録する。
+     画面本体は毎回インターネットを先に見に行く作りなので、更新が止まることはない（sw.js を参照） */
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+  }
+  function syncOnline(){
+    const el=document.getElementById('offNote'); if(!el) return;
+    el.classList.toggle('show', !navigator.onLine);
+  }
+  window.addEventListener('online', syncOnline);
+  window.addEventListener('offline', syncOnline);
+  syncOnline();
+
+  restoreDraft();                       // 落ちて戻された時のために、まず控えを戻す
+  refreshDate();                        // 清掃日は日本時間の今日を入れる（控えを戻したあとに実行）
+  renderChecks(); renderThumbs(); render();
+  document.getElementById('inputView').addEventListener('input', saveDraftSoon);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden){ saveDraft(); }              // 写真を選びに離れる直前に確実に控える
+    else { refreshDate(); render(); }                // 戻ってきた時に清掃日を取り直す（日をまたいでも古い日付が残らない）
+  });
+</script>
+</body>
+</html>
