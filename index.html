@@ -60,14 +60,18 @@
   .add-work button{ flex:none; padding:0 16px; border:none; border-radius:10px; background:var(--navy);
     color:#fff; font-weight:700; font-size:14px; cursor:pointer; }
 
-  .photo-pick{ display:flex; align-items:center; justify-content:center; gap:8px; padding:16px;
-    border:1.5px dashed var(--navy2); border-radius:12px; background:#fafbfd; color:var(--navy);
-    font-weight:700; font-size:15px; cursor:pointer; position:relative; }
+  /* 写真は8枚ぶんのマスに入れる。空きマスを最初から見せておけば、
+     説明を書かなくても「ここに写真が入る」と分かる */
+  .photo-box{ border:1px solid var(--line); border-radius:12px; background:#fafbfd; padding:10px; }
+  .thumbs{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .slot{ aspect-ratio:4/3; border:1.5px dashed #cdd6e3; border-radius:8px; background:#fff; }
+  .photo-pick{ aspect-ratio:4/3; display:flex; align-items:center; justify-content:center;
+    border:1.5px dashed var(--navy2); border-radius:8px; background:#e8eefa; color:var(--navy);
+    cursor:pointer; position:relative; }
   .photo-pick input[type=file]{ position:absolute; inset:0; opacity:0; cursor:pointer; }
-  .photo-pick .big{ font-size:22px; }
+  .photo-pick .big{ font-size:26px; line-height:1; }
   .photo-count{ font-size:13px; color:var(--muted); margin:10px 2px 0; }
   .photo-count b{ color:var(--orange2); }
-  .thumbs{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px; }
   .thumb{ position:relative; aspect-ratio:4/3; border-radius:8px; overflow:hidden; border:1px solid var(--line); }
   .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
   .thumb .del{ position:absolute; top:4px; right:4px; width:24px; height:24px; border:none; border-radius:50%;
@@ -100,6 +104,12 @@
   .ac-note{ display:none; font-size:12.5px; color:#14532d; background:#f0fdf4; border:1px solid #bbf7d0;
     border-radius:8px; padding:6px 10px; margin:8px 0 0; }
   .ac-note.show{ display:block; }
+  /* 清掃日：入力欄の右に「今日」に戻すボタンを置く */
+  .date-row{ display:flex; gap:8px; align-items:stretch; }
+  .date-row input[type=date]{ flex:1; min-width:0; }
+  .date-today{ flex:none; padding:0 16px; font-size:14px; font-weight:700; cursor:pointer;
+    border:1.5px solid var(--line); border-radius:10px; background:var(--bg); color:var(--muted); }
+  .date-today.on{ border-color:var(--orange); background:#fff6ee; color:var(--orange2); }  /* 今日と違う日付の時だけ目立たせる */
   /* 清掃日が「日本時間の今日」と違う時だけ出す注意書き */
   .date-note{ display:none; font-size:12.5px; font-weight:700; color:#9a3412; background:#fff7ed;
     border:1px solid #fed7aa; border-radius:8px; padding:6px 10px; margin:-8px 0 14px; }
@@ -216,8 +226,34 @@
   .btn-pdf{ background:linear-gradient(135deg,var(--orange) 0%,var(--orange2) 100%); }
   .btn-back{ background:var(--navy); }
   .btn-save{ background:linear-gradient(135deg,#1fa85e 0%,#137a43 100%); flex-basis:100%; }
-  .btn-next{ background:linear-gradient(135deg,#5b6cff 0%,#3a45d6 100%); flex-basis:100%; }
   .print-hint{ flex-basis:100%; margin:2px 0 0; font-size:12px; color:var(--muted); text-align:center; line-height:1.5; }
+
+  /* ===== 送信完了パネル =====
+     送信のあと「終わった／次にいける」がひと目で分かるようにする。
+     1日に何件も回るので、今日すでに送った物件も並べて送り忘れ・二重送信を防ぐ。 */
+  .done-card{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:26px 18px 20px;
+    margin-top:16px; text-align:center; box-shadow:0 2px 12px rgba(0,0,0,.05); }
+  .done-mark{ font-size:44px; line-height:1; }
+  .done-title{ margin:10px 0 0; font-size:20px; font-weight:800; color:#137a43; }
+  .done-place{ margin:10px 0 0; font-size:17px; font-weight:800; color:var(--ink); word-break:break-all; }
+  .done-date{ margin:3px 0 0; font-size:13px; color:var(--muted); }
+  .sent-head{ margin:20px 0 8px; padding-top:14px; border-top:1px solid var(--line);
+    font-size:12px; font-weight:700; color:var(--muted); }
+  .sent-item{ display:flex; align-items:center; gap:8px; margin-bottom:5px; padding:8px 11px;
+    font-size:14px; text-align:left; background:var(--bg); border-radius:8px; }
+  .sent-item .ck{ flex:none; color:#1fa85e; font-weight:800; }
+  .sent-item.now{ background:#eafaf1; font-weight:700; }   /* いま送った1件 */
+  .btn-next-big{ width:100%; margin-top:20px; padding:17px; font-size:16px; font-weight:800; border:none;
+    border-radius:12px; color:#fff; cursor:pointer; background:linear-gradient(135deg,#5b6cff 0%,#3a45d6 100%); }
+  .done-again{ width:100%; margin-top:10px; padding:12px; font-size:14px; font-weight:700; cursor:pointer;
+    border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--muted); }
+  .done-note{ margin:12px 0 0; font-size:12px; color:var(--muted); line-height:1.6; }
+  .done-way{ margin:12px 0 0; padding:11px 13px; border-radius:10px; font-size:13px; line-height:1.6;
+    text-align:left; background:#fdeee2; color:#b3500a; border:1px solid #f7c9a3; }
+  /* 押す前に「共有シートが出るのか／保存になるのか」を知らせる一行 */
+  .share-way{ font-weight:700; }
+  .share-way.ok{ color:#137a43; }
+  .share-way.ng{ color:#b3500a; }
 
   /* 文字が縮みすぎた時だけ出る警告 */
   .page-warn{ max-width:720px; margin:12px auto 0; padding:11px 14px; border-radius:10px;
@@ -269,15 +305,19 @@
     <div class="fld">
       <span class="lbl">清掃場所</span>
       <div class="ac-wrap">
-        <input type="text" id="f_place" placeholder="物件名を入力（変換前でも候補が出ます）" autocomplete="off"
+        <input type="text" id="f_place" placeholder="物件名を入力" autocomplete="off"
           oninput="render();onPlaceInput()" onfocus="onPlaceFocus()" onblur="onPlaceBlur()">
         <div class="ac-list" id="acList"></div>
       </div>
       <p class="ac-note" id="acNote"></p>
       <div class="name-chips" id="recentPlaces"></div>
     </div>
-    <label class="fld"><span>清掃日</span>
-      <input type="date" id="f_date" oninput="markDateTouched();render()"></label>
+    <div class="fld"><span class="lbl">清掃日</span>
+      <div class="date-row">
+        <input type="date" id="f_date" oninput="markDateTouched();render()">
+        <button type="button" class="date-today" id="btnToday" onclick="setToday()">今日</button>
+      </div>
+    </div>
     <p class="date-note" id="dateNote"></p>
     <label class="fld"><span>清掃者</span>
       <input type="text" id="f_worker" placeholder="例：佐藤" oninput="render();syncNameChips()"></label>
@@ -302,13 +342,16 @@
 
   <div class="card">
     <h2><span class="num">4</span>写真（最大8枚・まとめて選択）</h2>
-    <label class="photo-pick">
-      <span class="big">📷</span><span>写真を選ぶ（複数まとめてOK）</span>
-      <input type="file" id="photoInput" accept="image/*" multiple onchange="addPhotos(this)">
-    </label>
+    <div class="photo-box">
+      <div class="thumbs" id="thumbs"></div>
+      <!-- 写真を選ぶ本体。描画のたびに次の空きマスの位置へ動かす（要素ごと移動するので選択の仕組みは不変） -->
+      <label class="photo-pick" id="photoPick">
+        <span class="big">📷</span>
+        <input type="file" id="photoInput" accept="image/*" multiple onchange="addPhotos(this)">
+      </label>
+    </div>
     <p class="photo-count">登録中：<b id="photoNum">0</b> / 8 枚　<span id="spareNote"></span></p>
     <p class="photo-msg" id="photoMsg"></p>
-    <div class="thumbs" id="thumbs"></div>
     <p class="hint-note">8枚を超える分は自動で受け付けません。8枚目は報告書で「予備」と表示されます。<br>
       写真が入らないときは、いちど3〜4枚ずつに分けて選んでみてください。</p>
   </div>
@@ -375,9 +418,24 @@
   <button class="btn-back" onclick="switchView('input')">← 入力にもどる</button>
   <button class="btn-pdf" id="btnPdf" onclick="makePDF()">📄 PDFを作成</button>
   <button class="btn-save" id="btnSave" onclick="sharePDF()" style="display:none;">📥 保存 / LINEで送る</button>
-  <button class="btn-next" id="btnNext" onclick="newReport()" style="display:none;">🆕 次の報告書へ</button>
   <p class="print-hint" id="pdfReady" style="display:none;">✅ PDFができました。「📥 保存 / LINEで送る」を押すと、ファイルに保存やグループLINEへの送信ができます。</p>
   <p class="print-hint" id="pdfHint">「📄 PDFを作成」を押すと、A4・1枚のPDFを作ります（数秒かかります）。</p>
+  <p class="print-hint share-way" id="shareWay" style="display:none;"></p>
+</div>
+
+<!-- ============ 送信のあと ============ -->
+<div id="doneView" class="wrap" style="display:none;">
+  <div class="done-card">
+    <div class="done-mark" id="doneMark">✅</div>
+    <p class="done-title" id="doneTitle">送信しました</p>
+    <p class="done-place" id="donePlace"></p>
+    <p class="done-date" id="doneDate"></p>
+    <p class="done-way" id="doneWay" style="display:none;"></p>
+    <div id="sentList"></div>
+    <button class="btn-next-big" onclick="newReport()">🆕 次の報告書へ</button>
+    <button class="done-again" onclick="sharePDF()">もう一度送る</button>
+    <p class="done-note">LINEに届いていない時は「もう一度送る」を押してください。<br>今日の一覧は日付が変わると自動で消えます。</p>
+  </div>
 </div>
 
 <script>
@@ -552,10 +610,20 @@
   }
   function delPhoto(i){ photos.splice(i,1); photoThumbs.splice(i,1); renderThumbs(); render(); }
   function renderThumbs(){
-    document.getElementById('photoNum').textContent=photos.length;
-    document.getElementById('spareNote').textContent = photos.length>=8 ? '（8枚目＝予備）' : '';
-    document.getElementById('thumbs').innerHTML=photoThumbs.map((d,i)=>
-      `<div class="thumb"><img src="${d}"><button class="del" onclick="delPhoto(${i})">×</button></div>`).join('');
+    const n=photos.length;
+    document.getElementById('photoNum').textContent=n;
+    document.getElementById('spareNote').textContent = n>=MAX_PHOTOS ? '（8枚目＝予備）' : '';
+    const box=document.getElementById('thumbs'), pick=document.getElementById('photoPick');
+    // 常に8マス。前から順に「写真 → 撮影タイル → 空きマス」で埋める
+    box.innerHTML =
+      photoThumbs.map((d,i)=>
+        `<div class="thumb"><img src="${d}"><button class="del" onclick="delPhoto(${i})">×</button></div>`).join('')
+      + '<div class="slot"></div>'.repeat(Math.max(0, MAX_PHOTOS-n-1));
+    // 撮影タイルは枚数に関わらず必ず枠の中へ戻す。
+    // 8枚のとき戻さずにいると、直前の box.innerHTML で外れたまま document から消え、
+    // 次に renderThumbs() を呼んだ時に取得できずに落ちる（＝「次の報告書へ」も写真の削除も効かなくなる）。
+    box.insertBefore(pick, box.children[n]||null);   // 次の空きマスの位置へ移す
+    pick.style.display = n<MAX_PHOTOS ? '' : 'none'; // 8枚そろったら見せないだけ（DOMには残す）
   }
 
   /* ===== 物件名の候補（表記ゆれ防止） =====
@@ -890,6 +958,7 @@
 
   function switchView(v){
     const input=v==='input';
+    document.getElementById('doneView').style.display='none';     // タブを押したら完了パネルは閉じる
     document.getElementById('inputView').style.display=input?'block':'none';
     document.getElementById('previewView').style.display=input?'none':'block';
     document.getElementById('actions').style.display=input?'none':'flex';
@@ -900,8 +969,8 @@
       _pdfBlob=null;
       document.getElementById('btnPdf').style.display='';
       document.getElementById('btnSave').style.display='none';
-      document.getElementById('btnNext').style.display='none';
       document.getElementById('pdfReady').style.display='none';
+      document.getElementById('shareWay').style.display='none';
       document.getElementById('pdfHint').style.display='';
       refreshDate();                  // プレビューに来るたび清掃日を日本時間の今日に取り直す
       render(); scaleSheet();
@@ -995,16 +1064,47 @@
       document.getElementById('pdfHint').style.display='none';
       document.getElementById('btnSave').style.display='block';
       document.getElementById('pdfReady').style.display='block';
+      renderShareWay();                 // 押す前に「共有シートが出るのか／保存になるのか」を知らせる
     }catch(e){ alert('PDF作成に失敗しました：'+(e&&e.message||e)); }
     btn.disabled=false; btn.textContent=old;
   }
 
+  /* ===== 送信の経路を押す前に知らせる =====
+     「LINEアプリに移る時と移らない時がある」の切り分け用。
+     iPhoneで共有シートが使えるのは https の時だけ。使えない場合（httpの検証用サーバー、
+     一部のアプリ内ブラウザ等）は端末への保存に切り替わり、LINEに移らないので
+     「送れなかった」ように見える。どちらになるかを押す前に一行で出しておく。 */
+  function canShareFile(){
+    try{
+      const t=new File([new Blob(['x'],{type:'application/pdf'})],'t.pdf',{type:'application/pdf'});
+      return !!(navigator.share && navigator.canShare && navigator.canShare({files:[t]}));
+    }catch(e){ return false; }
+  }
+  function shareWhere(){
+    const ua=navigator.userAgent;
+    if(window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true) return 'ホーム画面';
+    if(/Line\//i.test(ua)) return 'LINE内ブラウザ';
+    return 'ブラウザ';
+  }
+  function renderShareWay(){
+    const el=document.getElementById('shareWay'); if(!el) return;
+    const ok=canShareFile(), where=shareWhere();
+    el.className='print-hint share-way '+(ok?'ok':'ng');
+    el.textContent = ok
+      ? '送信方法：共有シート（LINEを選んで送れます）　［'+where+'］'
+      : '⚠️ この画面ではLINEに直接送れません。押すと端末への保存になります　［'+where
+        + (window.isSecureContext?'':'・保護されていない接続') + '］';
+    el.style.display='block';
+  }
+
   /* 作成済みPDFを共有（iOSの共有シート＝ファイルに保存・LINE送信が出る）。
      非対応端末ではダウンロードにフォールバック。保存はこのボタン押下が起点なので確実に動く。 */
+  let _shareMode='';
   async function sharePDF(){
     if(!_pdfBlob) return;
     const file=new File([_pdfBlob], _pdfName, {type:'application/pdf'});
     try{
+      _shareMode='share';
       if(navigator.canShare && navigator.canShare({files:[file]})){
         // title は一旦戻した（2026-08-15）。titleを外したところ、iPhoneの共有シートから
         // LINEのアイコン自体が消えて送信できなくなったため。titleがあるとiOSでは
@@ -1012,13 +1112,58 @@
         // 原因の切り分け中： /share-test.html で実機の挙動を確認する
         await navigator.share({ files:[file], title:_pdfName });
       }else{
+        _shareMode='download';                       // 共有シートが使えず、端末への保存になった
         const url=URL.createObjectURL(_pdfBlob);
         const a=document.createElement('a'); a.href=url; a.download=_pdfName; a.click();
         setTimeout(()=>URL.revokeObjectURL(url),10000);
       }
-      // 保存/送信まで済んだら「次の報告書へ」を出す。この時点でPDFは保存済みなので、押せば確認なしで即クリアできる
-      document.getElementById('btnNext').style.display='block';
+      showDone();      // 送信までいけたら完了パネルへ切り替える（キャンセル時はここに来ない）
     }catch(e){ /* ユーザーが共有をキャンセルした場合などは何もしない */ }
+  }
+
+  /* ===== 送信のあとの画面 =====
+     以前は緑の案内文が出たまま下に「次の報告書へ」が増えるだけで、送れたのか分かりにくかった。
+     送信できたら用紙を隠して完了パネルに切り替え、画面の一番上へ戻す。
+     1日に何件も回るので、今日すでに送った物件名も並べる（送り忘れ・二重送信よけ）。 */
+  const LS_SENT='must_sent';
+  function loadSent(){
+    try{
+      const o=JSON.parse(localStorage.getItem(LS_SENT)||'null');
+      return (o && o.d===todayJST() && Array.isArray(o.list)) ? o.list : [];   // 日付が変わったら空に戻る
+    }catch(e){ return []; }
+  }
+  function addSent(name){
+    const n=(name||'').trim(); if(!n) return loadSent();
+    const list=loadSent().filter(x=>x!==n);           // 同じ物件を送り直した時は重複させず、一番下に置き直す
+    list.push(n);
+    try{ localStorage.setItem(LS_SENT, JSON.stringify({ d:todayJST(), list })); }catch(e){}
+    return list;
+  }
+  function showDone(){
+    const place=val('f_place').trim();
+    const list=addSent(place);
+    const sent=(_shareMode!=='download');
+    document.getElementById('doneMark').textContent  = sent?'✅':'📥';
+    document.getElementById('doneTitle').textContent = sent?'送信しました':'端末に保存しました';
+    const way=document.getElementById('doneWay');
+    way.style.display = sent?'none':'block';
+    way.textContent   = sent?'' :
+      'この画面ではLINEに直接送れないため、PDFを端末に保存しました。'
+      +'LINEアプリを開いて、保存したPDFを選んで送ってください。'
+      +'（ホーム画面のアイコンから開き直すと、次からは共有シートでそのまま送れます）';
+    document.getElementById('donePlace').textContent = place || '（物件名なし）';
+    document.getElementById('doneDate').textContent  = fmtDate(val('f_date'));
+    document.getElementById('sentList').innerHTML =
+      '<p class="sent-head">今日の送信 '+list.length+'件</p>' +
+      list.map(n=>`<div class="sent-item${n===place?' now':''}"><span class="ck">✓</span>${esc(n)}</div>`).join('');
+    document.getElementById('inputView').style.display='none';
+    document.getElementById('previewView').style.display='none';
+    document.getElementById('actions').style.display='none';
+    document.getElementById('doneView').style.display='block';
+    // 完了パネル中はどちらのタブも選択中に見せない（押せば入力/プレビューに戻れる）
+    document.getElementById('tabInput').classList.remove('active');
+    document.getElementById('tabPreview').classList.remove('active');
+    window.scrollTo(0,0);                              // ボタンを探さなくて済むよう一番上へ
   }
 
   /* 次の報告書へ：清掃日・清掃者はそのまま引き継ぎ、清掃場所・特記事項・写真・作業内容のチェックを
@@ -1140,6 +1285,11 @@
   }
   let _dateTouched=false;                                  // 清掃日を手で直したか（直した日付は勝手に書き換えない）
   function markDateTouched(){ _dateTouched=true; dateNote(); }
+  function setToday(){                                     // 「今日」ボタン：日付を今日に戻し、自動更新も再開する
+    _dateTouched=false;
+    document.getElementById('f_date').value=todayJST();
+    dateNote(); render(); saveDraft();
+  }
   function refreshDate(){                                  // 手つかずなら、その時点の日本時間の今日に入れ直す
     const e=document.getElementById('f_date'); if(!e) return;
     const t=todayJST();
@@ -1149,11 +1299,16 @@
   function dateNote(){                                     // 今日と違う日付のままなら気づけるように出す
     const n=document.getElementById('dateNote'); if(!n) return;
     const v=val('f_date'), t=todayJST();
+    const b=document.getElementById('btnToday');
     if(v && v!==t){
       const a=t.split('-');
       n.textContent='※ 清掃日が今日（'+Number(a[1])+'/'+Number(a[2])+'）ではありません。あとから作る報告書ならこのままで大丈夫です。';
       n.style.display='block';
-    }else{ n.style.display='none'; }
+      if(b) b.classList.add('on');                         // 今日に戻せることが分かるよう色を付ける
+    }else{
+      n.style.display='none';
+      if(b) b.classList.remove('on');
+    }
   }
 
   renderNameChips(); renderDueChips();
@@ -1172,7 +1327,7 @@
 
   restoreDraft();                       // 落ちて戻された時のために、まず控えを戻す
   refreshDate();                        // 清掃日は日本時間の今日を入れる（控えを戻したあとに実行）
-  renderChecks(); render();
+  renderChecks(); renderThumbs(); render();
   document.getElementById('inputView').addEventListener('input', saveDraftSoon);
   document.addEventListener('visibilitychange', ()=>{
     if(document.hidden){ saveDraft(); }              // 写真を選びに離れる直前に確実に控える
