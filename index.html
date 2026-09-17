@@ -42,6 +42,11 @@
   input[type=text], input[type=date], textarea{ width:100%; padding:13px 12px; font-size:16px;
     border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font-family:inherit; }
   input:focus, textarea:focus{ outline:none; border-color:var(--orange); }
+  /* 未入力のままプレビューに進もうとした項目。入力すれば自然に消える（goPreview／render を参照） */
+  input.miss{ border-color:#dc2626; background:#fef2f2; }
+  /* 赤枠の下に出す一言（赤枠だけでは屋外の日差しや色の見分けにくさで見落とすため、言葉でも示す） */
+  .miss-note{ display:none; font-size:12.5px; font-weight:700; color:#b91c1c; margin:5px 0 0; }
+  .miss-note.show{ display:block; }
   /* iOS Safari の date入力が右にはみ出す癖を抑える */
   input[type=date]{ -webkit-appearance:none; appearance:none; min-width:0; max-width:100%;
     text-align:left; display:block; }
@@ -286,7 +291,7 @@
 
 <div class="toggle-bar">
   <button id="tabInput" class="active" onclick="switchView('input')">✏️ 入力</button>
-  <button id="tabPreview" onclick="switchView('preview')">👁 プレビュー</button>
+  <button id="tabPreview" onclick="goPreview()">👁 プレビュー</button>
 </div>
 
 <!-- ============ 入力 ============ -->
@@ -309,6 +314,7 @@
           oninput="render();onPlaceInput()" onfocus="onPlaceFocus()" onblur="onPlaceBlur()">
         <div class="ac-list" id="acList"></div>
       </div>
+      <p class="miss-note" id="miss_f_place">物件名が入っていません</p>
       <p class="ac-note" id="acNote"></p>
       <div class="name-chips" id="recentPlaces"></div>
     </div>
@@ -317,10 +323,13 @@
         <input type="date" id="f_date" oninput="markDateTouched();render()">
         <button type="button" class="date-today" id="btnToday" onclick="setToday()">今日</button>
       </div>
+      <p class="miss-note" id="miss_f_date">清掃日が入っていません</p>
     </div>
     <p class="date-note" id="dateNote"></p>
-    <label class="fld"><span>清掃者</span>
-      <input type="text" id="f_worker" placeholder="例：佐藤" oninput="render();syncNameChips()"></label>
+    <div class="fld"><label class="lbl" for="f_worker">清掃者</label>
+      <input type="text" id="f_worker" placeholder="例：佐藤" oninput="render();syncNameChips()">
+      <p class="miss-note" id="miss_f_worker">清掃者が入っていません</p>
+    </div>
     <div class="name-chips" id="nameChips"></div>
     <button class="name-save" onclick="saveName()">＋ いまの名前を登録（次回からワンタップ）</button>
   </div>
@@ -956,6 +965,30 @@
   function delName(i){ let a=loadNames(); a.splice(i,1); storeNames(a); renderNameChips(); }
   function syncNameChips(){ renderNameChips(); }
 
+  /* ===== プレビューへ進む前の未入力チェック =====
+     物件名・清掃日・清掃者が空のままではプレビューに進めない（2026-09-18 決定）。
+     何が空かを並べて警告し、入力画面に留まったまま空の欄を赤く示し、最初の空欄まで画面を送る。
+     清掃日は手つかずなら今日が自動で入るので、先に refreshDate() してから本当に空かを見る。 */
+  const REQUIRED=[ ['f_place','物件名（清掃場所）'], ['f_date','清掃日'], ['f_worker','清掃者'] ];
+  function setMiss(id,on){                      // 空欄の赤枠と、その下の赤い一言（miss_〜）をそろえて出し入れする
+    const e=document.getElementById(id); if(e) e.classList.toggle('miss',on);
+    const n=document.getElementById('miss_'+id); if(n) n.classList.toggle('show',on);
+  }
+  function goPreview(){
+    refreshDate();
+    const missing=REQUIRED.filter(([id])=>!val(id).trim());
+    REQUIRED.forEach(([id])=>setMiss(id, missing.some(m=>m[0]===id)));
+    if(missing.length){
+      alert('⚠️ まだ入力されていない項目があります\n\n'
+        +missing.map(m=>'・'+m[1]).join('\n')
+        +'\n\n入力してからプレビューに進んでください。');
+      const first=document.getElementById(missing[0][0]);
+      if(first){ first.scrollIntoView({block:'center',behavior:'smooth'}); first.focus({preventScroll:true}); }
+      return;
+    }
+    switchView('preview');
+  }
+
   function switchView(v){
     const input=v==='input';
     document.getElementById('doneView').style.display='none';     // タブを押したら完了パネルは閉じる
@@ -1200,6 +1233,8 @@
   }
 
   function render(){
+    // 未入力の赤枠と一言は、その欄に何か入った時点で消す（goPreview を参照）
+    REQUIRED.forEach(([id])=>{ if(val(id).trim()) setMiss(id,false); });
     setField('pv_place', val('f_place'));
     setField('pv_date', fmtDate(val('f_date')));
     setField('pv_worker', val('f_worker'));
