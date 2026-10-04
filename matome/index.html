@@ -63,52 +63,72 @@
     background:#eef2f8; color:var(--navy2); font-size:12px; font-weight:800; }
   .plist .dt.none{ background:#fdeee2; color:var(--orange2); }
   .plist .nm-wrap{ flex:1; min-width:0; display:flex; flex-direction:column; }
-  .plist .nm{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
-  .plist .cl{ font-size:11px; font-weight:700; color:var(--navy2); margin-top:1px;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .plist .cl.none{ color:#a0a6b0; }
+  /* 物件名は省略せず折り返す（スマホ幅で「グリーンハ…」となり1と2の区別がつかなくなるため） */
+  .plist .nm{ overflow-wrap:anywhere; font-weight:700; line-height:1.4; }
+  .plist .tag{ display:inline-block; margin-left:6px; padding:0 6px; border-radius:5px; font-size:10.5px;
+    font-weight:800; vertical-align:1px; background:#fdeee2; color:#b3500a; }
   .plist button{ flex:none; width:30px; height:30px; border:1px solid var(--line); border-radius:8px;
     background:#fff; color:var(--navy); font-size:14px; cursor:pointer; }
   .plist button:disabled{ opacity:.3; cursor:default; }
   .plist button.rm{ color:var(--orange2); }
   .empty-note{ margin:12px 2px 0; font-size:13px; color:var(--muted); }
 
-  label.fld{ display:block; margin-bottom:14px; }
-  label.fld:last-child{ margin-bottom:0; }
-  label.fld > span{ display:block; font-size:13px; font-weight:700; color:var(--muted); margin-bottom:5px; }
   input[type=text]{ width:100%; padding:13px 12px; font-size:16px;
     border:1.5px solid var(--line); border-radius:10px; color:var(--ink); font-family:inherit; }
   input[type=text]:focus{ outline:none; border-color:var(--orange); }
   .auto-tag{ font-weight:400; color:var(--navy2); }
 
-  /* 期間の指定（ファイル名になる） */
-  .fld-blk{ margin-bottom:0; }
-  .fld-blk > .lbl{ display:block; font-size:13px; font-weight:700; color:var(--muted); margin-bottom:5px; }
+  /* 今回の提出（何月の・前半か後半か） */
   .per-month{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
   .per-month select{ padding:12px 10px; font-size:16px; border:1.5px solid var(--line); border-radius:10px;
     background:#fff; color:var(--ink); font-family:inherit; }
   .per-month .pm-note{ font-size:12.5px; font-weight:700; color:var(--muted); }
   .per-btns{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .per-btns button{ padding:12px 8px; font-size:14px; font-weight:700; border:1.5px solid var(--navy2);
-    border-radius:10px; background:#fff; color:var(--navy); cursor:pointer; }
+  .per-btns button{ padding:11px 8px; font-size:14px; font-weight:700; border:1.5px solid var(--navy2);
+    border-radius:10px; background:#fff; color:var(--navy); cursor:pointer; line-height:1.45; }
+  .per-btns button small{ display:block; font-size:11.5px; font-weight:400; opacity:.85; }
   .per-btns button.active{ background:var(--navy); color:#fff; border-color:var(--navy); }
-  .fname-prev{ margin:12px 0 0; padding:11px 12px; border-radius:10px; background:#eef2f8;
-    font-size:12.5px; font-weight:700; color:var(--muted); line-height:1.7; word-break:break-all; }
-  .fname-prev b{ display:block; font-size:14px; color:var(--navy); }
+  .rd-note{ margin:10px 2px 0; font-size:12.5px; color:var(--muted); line-height:1.7; }
 
   .btn-merge{ width:100%; padding:16px; font-size:16px; font-weight:800; border:none; border-radius:12px;
     cursor:pointer; color:#fff; background:linear-gradient(135deg,var(--orange) 0%,var(--orange2) 100%); }
   .btn-merge:disabled{ opacity:.45; cursor:default; }
   .status{ margin-top:12px; padding:11px 14px; border-radius:10px; font-size:13.5px; font-weight:700;
-    text-align:center; display:none; }
+    text-align:center; display:none; white-space:pre-line; }
   .status.ok{ display:block; background:#e9f7ec; color:#1b7a36; border:1px solid #bfe5c8; }
   .status.ng{ display:block; background:#fdeee2; color:#b3500a; border:1px solid #f7c9a3; }
   .hint{ font-size:12px; color:var(--muted); margin:10px 2px 0; }
 
-  /* 取引先の混在警告 */
-  .mix-warn{ margin-bottom:12px; padding:12px 14px; border-radius:10px; background:#fdeee2; border:1px solid #f7c9a3; }
-  .mix-warn p{ margin:0 0 10px; font-size:13px; font-weight:700; color:#b3500a; }
-  .mix-force{ width:100%; padding:11px; border:none; border-radius:10px; background:#b3500a; color:#fff; font-weight:700; cursor:pointer; }
+  /* 取引先ごとのPDF（1社＝1枚のカード） */
+  .cg{ border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:10px; background:#fff; }
+  .cg.ready{ border-left:4px solid var(--navy2); }
+  .cg.later{ background:#f7f8fa; }
+  .cg.needstyle{ border-color:#f0d488; background:#fffdf5; }
+  .cg-head{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .cg-name{ flex:1; min-width:150px; font-weight:800; color:var(--navy); font-size:14.5px; overflow-wrap:anywhere; }
+  .cg-cnt{ flex:none; font-size:11.5px; font-weight:800; color:#fff; background:var(--navy2); border-radius:999px; padding:1px 9px; }
+  .cg-style{ flex:none; padding:6px 8px; font-size:13px; border:1.5px solid var(--line); border-radius:8px;
+    background:#fff; color:var(--navy); font-family:inherit; font-weight:700; }
+  .cg-fname{ margin:8px 0 0; padding:8px 10px; border-radius:8px; background:#eef2f8; font-size:13px;
+    font-weight:700; color:var(--navy); overflow-wrap:anywhere; }
+  .cg-note{ margin:8px 0 0; font-size:12.5px; color:var(--muted); line-height:1.6; }
+  .cg-warn{ margin:8px 0 0; padding:9px 11px; border-radius:9px; font-size:12.5px; font-weight:700; line-height:1.7; }
+  .cg-warn.miss{ background:#fff8e6; border:1px solid #f0d488; color:#8a6400; }
+  .cg-warn.dup{ background:#fdeee2; border:1px solid #f7c9a3; color:#b3500a; }
+  .cg-warn .cw-title{ font-weight:800; margin-bottom:2px; }
+  .cg-toggle{ background:none; border:none; padding:8px 0 0; color:var(--navy2); font-size:13px; font-weight:700; cursor:pointer; }
+  .cg-foot{ display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap; }
+  .cg-save{ padding:9px 14px; border-radius:9px; border:1.5px solid var(--navy2); background:#fff; color:var(--navy);
+    font-weight:700; font-size:13px; cursor:pointer; }
+  .cg-save:disabled{ opacity:.45; cursor:default; }
+  .cg-done{ font-size:12.5px; font-weight:700; color:#1b7a36; }
+  .cg-pick{ display:grid; gap:8px; margin-top:10px; }
+  .cg-pick button{ text-align:left; padding:10px 12px; border:1.5px solid var(--navy2); border-radius:10px;
+    background:#fff; color:var(--navy); font-weight:700; font-size:13.5px; cursor:pointer; }
+  .cg-pick button small{ display:block; font-weight:400; color:var(--muted); font-size:12px; }
+  .absent{ margin-top:12px; padding:12px 14px; border-radius:10px; background:#fff8e6; border:1px solid #f0d488;
+    font-size:13px; font-weight:700; color:#8a6400; line-height:1.7; }
+  #saveStatus{ text-align:left; }
 
   /* 登録一覧（取引先・物件マスタ） */
   .mg-client{ border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; background:#fafbfd; }
@@ -180,15 +200,13 @@
   .m-freq button{ flex:1; padding:11px; border:1.5px solid var(--navy2); border-radius:10px; background:#fff; color:var(--navy); font-weight:700; font-size:14px; cursor:pointer; }
   .m-freq button.sel{ background:var(--navy); color:#fff; border-color:var(--navy); }
   .m-sel{ font-size:13px; font-weight:700; color:var(--navy); background:#eef2f8; border-radius:8px; padding:8px 10px; margin:0 0 12px; }
+  .m-sel.empty{ color:#a0a6b0; }
+  .m-preset{ font-size:12px; color:var(--navy2); margin:-6px 2px 12px; }
   .m-confirm{ width:100%; padding:13px; border:none; border-radius:10px; background:linear-gradient(135deg,var(--orange),var(--orange2)); color:#fff; font-weight:800; font-size:15px; cursor:pointer; margin-bottom:8px; }
   .m-confirm:disabled{ opacity:.45; cursor:default; }
 
-  /* 報告書が見当たらない物件の警告（出し忘れ防止） */
-  .miss-warn{ margin-bottom:12px; padding:12px 14px; border-radius:10px; background:#fff8e6; border:1px solid #f0d488; }
-  .miss-warn .mw-strong{ margin:0 0 8px; font-size:13px; font-weight:800; color:#8a6400; }
-  .miss-warn .mw-note{ margin:0; font-size:12px; font-weight:700; color:#a07b1e; }
-  .monthend{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--navy); margin-bottom:12px; cursor:pointer; user-select:none; }
-  .monthend input{ width:18px; height:18px; flex:none; }
+  .mg-style{ flex:none; padding:3px 6px; font-size:11.5px; border:1px solid var(--line); border-radius:7px;
+    background:#fff; color:var(--navy2); font-family:inherit; font-weight:700; }
   .mg-fbadge{ flex:none; font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px; background:#eef2f8; color:var(--navy2); }
   .mg-fbadge.q{ background:#fdeee2; color:var(--orange2); }
 </style>
@@ -197,61 +215,53 @@
 
 <div class="topbar">
   <h1>📚 清掃報告書 まとめツール</h1>
-  <p>半月分の報告書PDFを取引先ごとに1つのファイルへ結合します（マスト管理 有限会社）</p>
+  <p>報告書PDFをまとめて入れると、取引先ごとに1つのPDFを作ります（マスト管理 有限会社）</p>
 </div>
 
 <div class="wrap">
 
   <div class="card">
-    <h2><span class="num">1</span>報告書PDFを選ぶ</h2>
+    <h2><span class="num">1</span>報告書PDFを入れる</h2>
     <label class="drop" id="drop">
       <span class="big">📄</span>
       <span>ここにPDFをドラッグ＆ドロップ<br>またはタップして選択（複数OK）</span>
-      <small>物件名から取引先を自動判定。新しい物件は取引先を確認します</small>
+      <small>全部の取引先の分をまとめて入れてOK。取引先ごとに自動で分けます</small>
       <input type="file" id="pdfInput" accept="application/pdf,.pdf" multiple>
     </label>
-    <div class="sortbar" id="sortbar" style="display:none">
-      <span class="lbl">並び替え：</span>
-      <button id="sortDate" onclick="sortBy('date')">📅 清掃日順</button>
-      <button id="sortName" onclick="sortBy('prop')">🏢 物件名順</button>
-    </div>
-    <p class="list-count" id="plistCount" style="display:none"></p>
-    <div class="scroll-box" id="plistBox" style="display:none">
-      <ul class="plist" id="plist"></ul>
-    </div>
+    <p class="list-count" id="loadCount" style="display:none"></p>
     <p class="empty-note" id="emptyNote">まだPDFが選ばれていません。</p>
-    <label class="monthend" id="monthEndWrap" style="display:none">
-      <input type="checkbox" id="monthEndChk" onchange="toggleMonthEnd(this)">
-      月末チェック（月1回の物件も「出し忘れ」確認に含める）
-    </label>
-    <div class="miss-warn" id="missWarn" style="display:none"></div>
-    <p class="hint">取り込むと自動で清掃日順に並びます。ボタンで並び替え、↑↓で手動調整もできます。この順番どおりに結合されます。</p>
+    <div class="status" id="status"></div>
     <button class="btn-reset" id="btnReset" onclick="resetAll()" style="display:none">🔄 最初からやり直す（取り込んだPDFを全部消す）</button>
   </div>
 
   <div class="card">
-    <h2><span class="num">2</span>宛先と期間（ファイル名に使います）</h2>
-    <label class="fld"><span>宛先（取引企業名）<span class="auto-tag" id="companyAuto"></span></span>
-      <input type="text" id="f_company" placeholder="例：〇〇不動産"
-        oninput="this.dataset.auto='0';document.getElementById('companyAuto').textContent='';updateFileName();"></label>
-    <div class="fld-blk">
-      <span class="lbl">期間<span class="auto-tag" id="periodAuto"></span></span>
-      <div class="per-month">
-        <select id="f_month" onchange="onMonthChange()"></select>
-        <span class="pm-note">の報告書として保存します</span>
-      </div>
-      <div class="per-btns" id="perBtns">
-        <button data-p="h1" onclick="setPeriod('h1')">前半分</button>
-        <button data-p="h2" onclick="setPeriod('h2')">後半分</button>
-        <button data-p="m1" onclick="setPeriod('m1')">月1回</button>
-        <button data-p="mo" onclick="setPeriod('mo')">月分</button>
-      </div>
+    <h2><span class="num">2</span>今回の提出<span class="auto-tag" id="roundAuto"></span></h2>
+    <div class="per-month">
+      <select id="f_month" onchange="onMonthChange()"></select>
+      <span class="pm-note">の報告書</span>
     </div>
-    <p class="fname-prev" id="fnamePrev"></p>
+    <div class="per-btns" id="roundBtns">
+      <button data-r="h1" onclick="setRound('h1')">前半の提出<small id="rbH1">「前半分」を作る</small></button>
+      <button data-r="h2" onclick="setRound('h2')">後半・月末の提出<small id="rbH2">「後半分」「月分」「月1回」を作る</small></button>
+    </div>
+    <p class="rd-note" id="roundNote"></p>
   </div>
 
   <div class="card">
-    <h2><span class="num">3</span>1つのPDFに結合</h2>
+    <h2><span class="num">3</span>取引先ごとのPDF</h2>
+    <p class="empty-note" id="groupsEmpty">PDFを入れると、ここに取引先ごとに分かれて並びます。</p>
+    <div class="sortbar" id="sortbar" style="display:none">
+      <span class="lbl">並び順：</span>
+      <button id="sortDate" onclick="sortBy('date')">📅 清掃日順</button>
+      <button id="sortName" onclick="sortBy('prop')">🏢 物件名順</button>
+    </div>
+    <div id="groups"></div>
+    <div class="absent" id="absent" style="display:none"></div>
+    <p class="hint" id="groupsHint" style="display:none">「報告書を表示」で中身の一覧が開きます。↑↓で順番を入れかえると、その順番どおりに結合します。</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">4</span>保存する</h2>
     <div class="qbar" id="qbar">
       <span class="qlbl">画質（メール送付用の軽量化）</span>
       <div class="qbtns">
@@ -262,18 +272,15 @@
       </div>
     </div>
     <p class="qhint" id="qHint"></p>
-    <div class="mix-warn" id="mixWarn" style="display:none">
-      <p id="mixMsg"></p>
-      <button class="mix-force" id="mixForce" onclick="forceMerge()">⚠️ それでも結合する</button>
-    </div>
     <div class="savedir" id="saveDirWrap">
       <span class="sd-lbl">保存先</span>
       <span class="sd-val" id="sdVal">未設定（ブラウザのダウンロード先）</span>
       <button id="sdPick" onclick="pickSaveDir()">フォルダを選ぶ</button>
       <button id="sdClear" onclick="clearSaveDir()" style="display:none">解除</button>
     </div>
-    <button class="btn-merge" id="btnMerge" onclick="merge()" disabled>📚 結合してダウンロード</button>
-    <div class="status" id="status"></div>
+    <button class="btn-merge" id="btnMerge" onclick="saveAll()" disabled>📚 まとめて保存</button>
+    <p class="hint" id="saveHint"></p>
+    <div class="status" id="saveStatus"></div>
   </div>
 
   <div class="card">
@@ -286,7 +293,7 @@
     <div class="scroll-box" id="mgmtScroll"><div id="mgmtList"></div></div>
     <button class="btn-copy" id="btnCopyList" onclick="copyPlaceList()">📋 物件一覧をコピー（現場のスマホに配る用）</button>
     <p class="copy-note" id="copyNote"></p>
-    <p class="hint">取引先名をタップで開閉。✎＝取引先の付け替え、×＝登録の削除。誤って登録した物件はここで直せます。</p>
+    <p class="hint">取引先名をタップで開閉。右の欄＝その取引先のまとめ方、✎＝取引先の付け替え、×＝登録の削除。誤って登録した物件はここで直せます。</p>
   </div>
 
 
@@ -316,7 +323,9 @@
       <div class="m-clients" id="mMergeList"></div>
     </div>
     <div id="mNormal">
-    <p class="m-sel" id="mSelClient" style="display:none"></p>
+    <!-- 選ぶ前から場所を取っておく（選んだ瞬間に下のボタンがずれて押し間違えるのを防ぐ） -->
+    <p class="m-sel empty" id="mSelClient">取引先：まだ選ばれていません</p>
+    <p class="m-preset" id="mPreset" style="display:none"></p>
     <p class="m-sub" id="mSubExisting">登録済みの取引先から選ぶ</p>
     <div class="m-clients" id="mClients"></div>
     <p class="m-sub">新しい取引先を登録する</p>
@@ -336,9 +345,9 @@
 </div>
 
 <script>
-  let items = [];          // {name, bytes, date, prop, client}
+  let items = [];          // {id, name, bytes, date, prop, client, created}
+  let itemSeq = 0;         // items の通し番号（保存済みかどうかの照合に使う）
   let curSort = 'date';    // 'date' | 'prop' | null(手動)
-  let mixOverride = false;  // 取引先混在でも結合する（ユーザーが明示）
   let mgmtQuery = '';        // 登録一覧の検索文字
   let collapsedClients = {}; // 取引先名→true で折りたたみ
   let quality = 'std';       // 'hi'=無劣化そのまま / 'std'=標準圧縮 / 'lite'=軽量圧縮
@@ -488,7 +497,26 @@
   function saveFreq(){ persist(LS_FREQ, freqMap); }
   let freqMap = loadFreq();
   function lookupFreq(prop){ return freqMap[prop]==='1' ? '1' : '2'; }
-  let monthEndCheck = false;
+
+  /* ===== 取引先ごとの「まとめ方」 =====
+     half = 前半分・後半分に分けて提出 / m1 = 月1回（○月_月1回）/ mo = ひと月分まとめて（○月分）
+     取引先ごとに一度選べば覚える。以前の版が覚えていた書き方（月1回・月分）はそのまま引き継ぐ */
+  const LS_CSTYLE = 'must_client_style';
+  let clientStyle = (function(){
+    let m = {};
+    try{ m = JSON.parse(localStorage.getItem(LS_CSTYLE)) || {}; }catch(e){}
+    try{
+      const old = JSON.parse(localStorage.getItem('must_client_period_style')) || {};
+      Object.keys(old).forEach(c=>{ if(!m[c] && (old[c]==='m1' || old[c]==='mo')) m[c] = old[c]; });
+    }catch(e){}
+    return m;
+  })();
+  const STYLE_LABEL = { half:'前半・後半に分けて', m1:'月1回', mo:'ひと月分まとめて' };
+  function setClientStyle(client, style){
+    if(!client || !STYLE_LABEL[style]) return;
+    clientStyle[client] = style; persist(LS_CSTYLE, clientStyle);
+    renderAll();
+  }
 
   /* ===== ファイル名「清掃報告書_物件名_YYYYMMDD.pdf」から清掃日と物件名を取り出す ===== */
   function fromName(name){
@@ -503,16 +531,19 @@
     return { date, prop };
   }
   // 清掃日と物件名を取得。①PDF内部の埋め込み情報（LINEでファイル名が変わっても残る）→②ファイル名 の順
+  // 作成日時も取っておく（同じ物件・同じ日の報告書が2つあるとき、どちらが新しいかを見分けるため）
   async function readMeta(bytes, name){
+    let created = null;
     try{
       const doc = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption:true });
+      try{ created = doc.getCreationDate() || null; }catch(e){}
       const sub = (doc.getSubject()||'').match(/(\d{8})/);
       if(sub){
         const kw = (doc.getKeywords()||'').trim();
-        return { date: sub[1], prop: kw || fromName(name).prop };
+        return { date: sub[1], prop: kw || fromName(name).prop, created };
       }
     }catch(e){ /* 読めなければファイル名にフォールバック */ }
-    return fromName(name);
+    return { ...fromName(name), created };
   }
   function fmtDate(d){ return d ? `${+d.slice(4,6)}/${+d.slice(6,8)}` : '日付不明'; }
 
@@ -525,58 +556,77 @@
   async function addFiles(fileList){
     const files = [...fileList].filter(f=>/\.pdf$/i.test(f.name) || f.type==='application/pdf');
     if(!files.length){ setStatus('ng','PDFファイルを選んでください。'); return; }
-    mixOverride = false;
     const fixed = [];                                  // 表記ゆれを登録ずみの表記に寄せた分
+    let sameCnt = 0;                                   // 中身まで同じだったので1つにした数
+    // ① 先に全部読む。新しい物件が何件あるか数えて、確認画面に「1/3」と出すため
+    const metas = [];
     for(const f of files){
-      if(items.some(it=>it.name===f.name)) continue;   // 同名は二重登録しない
+      if(items.some(it=>it.name===f.name) || metas.some(m=>m.name===f.name)) continue;   // 同名は二重登録しない
       const bytes = await f.arrayBuffer();
-      const meta = await readMeta(bytes, f.name);
-      const canon = canonProp(meta.prop);              // 半角/全角違い等は登録ずみの表記に統一
-      if(canon !== meta.prop){ fixed.push(`${meta.prop} → ${canon}`); meta.prop = canon; }
-      let client = lookupClient(meta.prop);            // 既知の物件なら取引先を自動割り当て
-      if(client === null){                              // 新しい物件 → まず打ち間違いを疑い、次に取引先を確認
-        const near = findSimilar(meta.prop);                 // 打ち間違いの可能性が高い＝はい/いいえで聞く
-        const hint = near ? null : findNear(meta.prop);      // 微妙なもの＝知らせるだけ（既定は新規登録）
-        const res = await resolveNewProperty(meta.prop, 'new', null, near, hint);
-        if(res.skip) continue;                          // 「取り込まない」→ このPDFは除外
-        if(res.alias){                                  // 「同じ物件です」＝登録ずみの名前に寄せる
-          addAlias(meta.prop, res.alias);
-          fixed.push(`${meta.prop} → ${res.alias}`);
-          meta.prop = res.alias;
+      metas.push({ name:f.name, bytes, ...(await readMeta(bytes, f.name)) });
+    }
+    const unknown = new Set();
+    metas.forEach(m=>{ const p=canonProp(m.prop); if(lookupClient(p)===null) unknown.add(p || '（名前なし）'+m.name); });
+    let asked = 0;
+    const skipped = new Set();                         // 「取り込まない」と答えた物件名（同じ名前のPDFは聞き直さない）
+    // ② 1件ずつ取引先を割り当てる
+    for(const m of metas){
+      const canon = canonProp(m.prop);                 // 半角/全角違い等は登録ずみの表記に統一（直前の回答で増えた別名も効く）
+      if(canon !== m.prop){ fixed.push(`${m.prop} → ${canon}`); m.prop = canon; }
+      if(m.prop && skipped.has(m.prop)) continue;
+      let client = lookupClient(m.prop);               // 既知の物件なら取引先を自動割り当て
+      if(client === null){                             // 新しい物件 → まず打ち間違いを疑い、次に取引先を確認
+        const near = findSimilar(m.prop);                  // 打ち間違いの可能性が高い＝はい/いいえで聞く
+        const hint = near ? null : findNear(m.prop);       // 微妙なもの＝知らせるだけ（既定は新規登録）
+        const like = near || hint;                         // 似た名前の物件の取引先・頻度を、最初から選んだ状態にしておく
+        const preset = like ? { client:lookupClient(like), freq:lookupFreq(like), from:like } : null;
+        asked++;
+        const res = await resolveNewProperty(m.prop, 'new', preset, near, hint, unknown.size>1 ? `${unknown.size}件中${Math.min(asked,unknown.size)}件目` : '');
+        if(res.skip){ if(m.prop) skipped.add(m.prop); continue; }   // 「取り込まない」→ このPDFは除外
+        if(res.alias){                                 // 「同じ物件です」＝登録ずみの名前に寄せる
+          addAlias(m.prop, res.alias);
+          fixed.push(`${m.prop} → ${res.alias}`);
+          m.prop = res.alias;
           client = lookupClient(res.alias);
         }else{
           client = res.client;
-          if(meta.prop){ propMap[meta.prop] = client; freqMap[meta.prop] = res.freq; saveMap(); saveFreq(); }   // 物件名が取れたものだけ記憶
+          if(m.prop){ propMap[m.prop] = client; freqMap[m.prop] = res.freq; saveMap(); saveFreq(); }   // 物件名が取れたものだけ記憶
         }
       }
-      items.push({ name:f.name, bytes, ...meta, client });
+      // LINEで同じ報告書が2回届くと、ファイル名だけ変わって中身は同じ（…(1).pdf）。中身まで同じなら1つにする
+      if(items.some(it=>it.prop===m.prop && it.date===m.date && sameBytes(it.bytes, m.bytes))){ sameCnt++; continue; }
+      items.push({ id:++itemSeq, name:m.name, bytes:m.bytes, date:m.date, prop:m.prop, created:m.created, client });
     }
     applySort();
     renderAll();
+    const msgs = [];
+    if(fixed.length) msgs.push('✅ 物件名の書き方のちがい '+fixed.length+'件を、登録ずみの表記に合わせました（'+fixed.join('／')+'）');
+    if(sameCnt) msgs.push('✅ 中身がまったく同じ報告書が '+sameCnt+'件あったので、1つにしました（LINEで2回届いた分など）');
     if(persistFailed){
       setStatus('ng','⚠️ この端末（プライベートブラウズ等）では取引先・頻度を保存できません。結合はできますが、次回は再入力が必要になる場合があります。');
-    }else if(fixed.length){
-      setStatus('ok','✅ 物件名の書き方のちがい '+fixed.length+'件を、登録ずみの表記に合わせました（'+fixed.join('／')+'）');
     }else{
-      setStatus('','');
+      setStatus(msgs.length ? 'ok' : '', msgs.join('\n'));
     }
+  }
+  function sameBytes(a, b){
+    if(a.byteLength !== b.byteLength) return false;
+    const x = new Uint8Array(a), y = new Uint8Array(b);
+    for(let i=0;i<x.length;i++) if(x[i]!==y[i]) return false;
+    return true;
   }
 
   /* 最初からやり直す。取り込んだPDFと画面の状態だけを消し、
-     取引先・頻度・別名の登録（育てた資産）は残す */
+     取引先・頻度・別名・まとめ方の登録（育てた資産）は残す */
   function resetAll(){
     if(items.length && !confirm('取り込んだPDF '+items.length+'件を全部消して、最初からやり直しますか？\n（取引先・物件の登録は消えません）')) return;
-    items=[]; mixOverride=false; curSort='date';
-    monthEndCheck=false;
-    const chk=document.getElementById('monthEndChk'); if(chk) chk.checked=false;
-    document.getElementById('f_company').value='';
+    items=[]; curSort='date'; savedSig={}; openGroups.clear();
     document.getElementById('pdfInput').value='';
-    periodTouched=false; monthTouched=false; periodStyle='h1';
+    roundTouched=false; monthTouched=false;
     initMonthSelect();
     renderAll();
-    setStatus('','');
+    setStatus('',''); setStatus('','','saveStatus');
   }
-  function sortBy(mode){ curSort = mode; applySort(); renderList(); }
+  function sortBy(mode){ curSort = mode; applySort(); renderGroups(); }
   function applySort(){
     if(curSort==='date'){
       items.sort((a,b)=> (a.date||'99999999').localeCompare(b.date||'99999999') || a.name.localeCompare(b.name,'ja'));
@@ -585,172 +635,247 @@
     }
   }
 
-  function renderAll(){ renderList(); renderMgmt(); syncResetBtn(); }
-  function syncResetBtn(){
-    const b=document.getElementById('btnReset');
-    if(b) b.style.display = items.length ? 'block' : 'none';
+  function renderAll(){ autoRound(); renderRound(); renderGroups(); renderMgmt(); renderLoad(); }
+  function renderLoad(){
+    const n = items.length;
+    document.getElementById('btnReset').style.display = n ? 'block' : 'none';
+    document.getElementById('emptyNote').style.display = n ? 'none' : 'block';
+    const lc = document.getElementById('loadCount');
+    lc.style.display = n ? 'block' : 'none';
+    lc.textContent = n ? `読み込み済み ${n}件（取引先 ${new Set(items.map(it=>it.client).filter(Boolean)).size}社）` : '';
   }
 
-  function renderList(){
-    const ul=document.getElementById('plist');
-    ul.innerHTML = items.map((it,i)=>`<li>
-      <span class="no">${i+1}</span>
-      <span class="dt${it.date?'':' none'}">${fmtDate(it.date)}</span>
-      <span class="nm-wrap">
-        <span class="nm">${esc(it.prop||it.name)}</span>
-        <span class="cl${it.client?'':' none'}">🏢 ${esc(it.client||'取引先 未設定')}</span>
-      </span>
-      <button onclick="move(${i},-1)" ${i===0?'disabled':''}>↑</button>
-      <button onclick="move(${i},1)" ${i===items.length-1?'disabled':''}>↓</button>
-      <button class="rm" onclick="remove(${i})">×</button>
-    </li>`).join('');
-    document.getElementById('emptyNote').style.display = items.length ? 'none' : 'block';
-    document.getElementById('plistBox').style.display = items.length ? 'block' : 'none';
-    const pc=document.getElementById('plistCount');
-    pc.style.display = items.length ? 'block' : 'none'; pc.textContent = items.length ? `${items.length}件` : '';
-    document.getElementById('sortbar').style.display = items.length ? 'flex' : 'none';
-    document.getElementById('sortDate').classList.toggle('active', curSort==='date');
-    document.getElementById('sortName').classList.toggle('active', curSort==='prop');
-    updateMergeState();
-    renderMissing();
-    updateQHint();
-    autoPeriod();      // 清掃日から「何月・前半/後半」を推定
-    updateFileName();
+  /* ===== 今回の提出（何月の・前半か後半か） =====
+     前半の提出 … 「前半・後半に分けて」の取引先だけ、1〜15日の報告書で「○月前半分」を作る
+     後半の提出 … その取引先は16日以降で「○月後半分」、月1回・ひと月分の取引先はその月全部で「○月_月1回」「○月分」
+     月と前半/後半は取り込んだPDFの清掃日から自動で決め、ボタンで選び直せる（選び直したら自動では変えない） */
+  let roundHalf = 'h1', roundTouched = false, monthTouched = false;
+  let targetYM = '';                                   // 'YYYYMM'
+  function halfOf(d){ return +d.slice(6,8) >= 16 ? 'h2' : 'h1'; }
+  function hasDate(it){ return /^\d{8}$/.test(it.date); }
+  function thisYM(){ const t=new Date(); return t.getFullYear()+String(t.getMonth()+1).padStart(2,'0'); }
+  function mostCommon(arr){
+    const c={}; arr.forEach(v=>{ c[v]=(c[v]||0)+1; });
+    return Object.keys(c).sort((a,b)=>c[b]-c[a] || a.localeCompare(b))[0];
   }
-  function move(i,d){ const j=i+d; if(j<0||j>=items.length)return; curSort=null; [items[i],items[j]]=[items[j],items[i]]; renderList(); }
-  function remove(i){ items.splice(i,1); mixOverride=false; renderList(); }
-
-  /* 取引先が混ざっていないかのチェック＋宛先の自動入力＋結合ボタンの可否 */
-  function clientsInList(){ return [...new Set(items.map(it=>it.client).filter(Boolean))]; }
-  function updateMergeState(){
-    const cs = clientsInList();
-    const mixed = cs.length > 1;
-    const warn = document.getElementById('mixWarn');
-    const btn = document.getElementById('btnMerge');
-    if(mixed && !mixOverride){
-      warn.style.display='block';
-      document.getElementById('mixForce').style.display='block';
-      document.getElementById('mixMsg').textContent =
-        '⚠️ 異なる取引先が混ざっています：'+cs.join(' / ')+'。通常は取引先ごとに分けて結合してください。';
-      btn.disabled = true;
-    }else if(mixed && mixOverride){
-      warn.style.display='block';
-      document.getElementById('mixForce').style.display='none';
-      document.getElementById('mixMsg').textContent =
-        '⚠️ 異なる取引先（'+cs.join(' / ')+'）が混在したまま結合します。';
-      btn.disabled = items.length < 1;
-    }else{
-      warn.style.display='none';
-      btn.disabled = items.length < 1;
-    }
-    // 取引先が1社に揃っていれば宛先を自動入力（手入力したら上書きしない）
-    const f = document.getElementById('f_company');
-    const tag = document.getElementById('companyAuto');
-    if(cs.length===1 && (f.dataset.auto==='1' || !f.value.trim())){
-      f.value = cs[0]; f.dataset.auto='1'; tag.textContent='（自動入力）';
-    }
-  }
-
-  /* 出し忘れ警告：取り込んだ取引先で「登録済みなのに今回のPDFに無い」物件を一覧化 */
-  function toggleMonthEnd(cb){ monthEndCheck = cb.checked; renderMissing(); }
-  let _missRows = [];
-  function renderMissing(){
-    const box = document.getElementById('missWarn');
-    document.getElementById('monthEndWrap').style.display = items.length ? 'flex' : 'none';
-    const cs = clientsInList();
-    if(!items.length || !cs.length){ box.style.display='none'; return; }
-    const loaded = new Set(items.map(it=>it.prop).filter(Boolean));
-    const missing = [];
-    Object.keys(propMap).forEach(p=>{
-      if(!cs.includes(propMap[p])) return;     // 今回取り込んだ取引先の物件だけが対象
-      if(loaded.has(p)) return;                // すでに今回のPDFに入っている
-      const f = lookupFreq(p);
-      if(f==='1' && !monthEndCheck) return;    // 月1回は「月末チェック」ON時のみ確認
-      missing.push({ p, f });
-    });
-    if(!missing.length){ box.style.display='none'; return; }
-    box.style.display='block';
-    // 打ち間違いで増えた名前がここに溜まると、本当の出し忘れが埋もれる。
-    // その場で「まとめる」「登録を消す」ができるようにしておく
-    _missRows = missing.sort((a,b)=>a.p.localeCompare(b.p,'ja'));
-    const lines = _missRows.map((m,i)=>`<div class="miss-row">`+
-        `<span class="mr-name">・${esc(m.p)}（${m.f==='1'?'月1回':'月2回'}）</span>`+
-        `<button onclick="mergeInto(${i})" title="別の物件と同じものにまとめる">まとめる</button>`+
-        `<button onclick="dropMissing(${i})" title="この登録を削除">×</button>`+
-      `</div>`).join('');
-    box.innerHTML =
-      `<p class="mw-strong">📋 報告書が見当たりません（出し忘れ？）</p>`+
-      `<div style="font-size:13px; font-weight:700; color:#8a6400; line-height:1.9; margin-bottom:8px">${lines}</div>`+
-      `<p class="mw-note">${monthEndCheck
-        ? '月末チェック中：月1回の物件も含めて確認しています。今月まだ清掃していなければ要対応です。'
-        : '取り込んだ取引先で登録済みの物件のうち、今回のPDFに入っていないものです。'}</p>`;
-  }
-
-  /* ===== 期間（ファイル名「清掃報告書_○月△半分_【取引先名】」に使う） =====
-     書き方は4通り： h1=○月前半分 / h2=○月後半分 / m1=○月_月1回 / mo=○月分
-     月と書き方は取り込んだPDFの清掃日から自動で決め、ボタンで選び直せる（選び直したら自動判定はしない） */
-  const LS_PSTYLE = 'must_client_period_style';   // 取引先ごとに前回使った書き方（月1回系のみ記憶）
-  let pStyleMap = (function(){ try{ return JSON.parse(localStorage.getItem(LS_PSTYLE))||{}; }catch(e){ return {}; } })();
-  let periodStyle = 'h1';
-  let periodTouched = false, monthTouched = false;
-
   function initMonthSelect(){
     const s=document.getElementById('f_month');
     s.innerHTML = Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1}月</option>`).join('');
-    s.value = String(new Date().getMonth()+1);      // 初期値は今月（PDFを入れると清掃日の月に合わせる）
+    targetYM = thisYM(); s.value = String(+targetYM.slice(4,6));
   }
-  function setPeriod(p){ periodStyle=p; periodTouched=true; updateFileName(); }
-  function onMonthChange(){ monthTouched=true; updateFileName(); }
-
-  function autoPeriod(){
-    const ds = items.map(it=>it.date).filter(d=>/^\d{8}$/.test(d));
-    if(ds.length && !monthTouched){                 // 清掃日でいちばん多い月に合わせる
-      const cnt={}; ds.forEach(d=>{ const m=+d.slice(4,6); cnt[m]=(cnt[m]||0)+1; });
-      const top=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a] || a-b)[0];
-      document.getElementById('f_month').value=String(+top);
+  function autoRound(){
+    const ds = items.filter(hasDate).map(it=>it.date);
+    if(!monthTouched){                               // 清掃日でいちばん多い月
+      targetYM = ds.length ? mostCommon(ds.map(d=>d.slice(0,6))) : thisYM();
+      document.getElementById('f_month').value = String(+targetYM.slice(4,6));
     }
-    if(periodTouched) return;
-    const cs=clientsInList();
-    const remembered = cs.length===1 ? pStyleMap[cs[0]] : null;
-    const allMonthly = items.length && items.every(it=>it.prop && lookupFreq(it.prop)==='1');
-    if(allMonthly){                                  // 月1回の物件だけ＝「○月分」か「○月_月1回」（前回の書き方を再現）
-      periodStyle = (remembered==='m1'||remembered==='mo') ? remembered : 'mo';
-    }else if(ds.length){                             // 16日以降が多ければ後半分
-      periodStyle = ds.filter(d=>+d.slice(6,8)>=16).length > ds.length/2 ? 'h2' : 'h1';
+    if(!roundTouched){                               // その月の16日以降の報告書があれば後半の提出
+      roundHalf = ds.some(d=>d.slice(0,6)===targetYM && halfOf(d)==='h2') ? 'h2' : 'h1';
     }
   }
-
-  function periodText(){
-    const m=+document.getElementById('f_month').value||0; if(!m) return '';
-    return periodStyle==='h1' ? `${m}月前半分`
-         : periodStyle==='h2' ? `${m}月後半分`
-         : periodStyle==='m1' ? `${m}月_月1回`
-         :                      `${m}月分`;
+  function onMonthChange(){
+    monthTouched = true;
+    const m = String(document.getElementById('f_month').value).padStart(2,'0');
+    // 選んだ月の報告書があればその年、無ければ今年として扱う（12月→1月をまたぐときのため）
+    const ys = items.filter(it=>hasDate(it) && it.date.slice(4,6)===m).map(it=>it.date.slice(0,4));
+    targetYM = (ys.length ? mostCommon(ys) : String(new Date().getFullYear())) + m;
+    renderAll();
   }
+  function setRound(h){ roundHalf = h; roundTouched = true; renderAll(); }
+  function renderRound(){
+    const m = +targetYM.slice(4,6);
+    document.querySelectorAll('#roundBtns button').forEach(b=>b.classList.toggle('active', b.dataset.r===roundHalf));
+    document.getElementById('rbH1').textContent = `「${m}月前半分」を作る`;
+    document.getElementById('rbH2').textContent = `「${m}月後半分」「${m}月分」「${m}月_月1回」を作る`;
+    document.getElementById('roundAuto').textContent = (items.length && !roundTouched) ? '（清掃日から自動で選びました）' : '';
+    document.getElementById('roundNote').textContent = roundHalf==='h1'
+      ? `${m}月1〜15日の報告書で、「前半・後半に分けて」の取引先の「${m}月前半分」を作ります。月1回・ひと月分の取引先は、後半の提出でまとめて作ります。`
+      : `16日以降の報告書で「${m}月後半分」を、${m}月の全部の報告書で「${m}月分」「${m}月_月1回」を作ります。「${m}月分」には前半の報告書も入るので、ひと月分の報告書をまとめて入れてください。`;
+  }
+
+  /* ===== 取引先ごとのPDF =====
+     取り込んだ報告書を取引先ごとに分け、今回の提出で作るPDF（ファイル名・中身・注意）を組み立てる */
+  let _groups = [];
+  let _missRows = [];                                  // 出し忘れ欄の「まとめる」「×」が指す物件
+  let savedSig = {};                                   // 取引先 → 保存したときの中身（同じなら「保存しました」と出す）
+  const openGroups = new Set();                        // 報告書の一覧を開いている取引先
   function safeName(s){ return String(s).replace(/[\\\/:*?"<>|\r\n\t]/g,'-').trim(); }
-  function outFileName(){
-    const c=safeName(document.getElementById('f_company').value.trim());
-    return ['清掃報告書', periodText(), c?`【${c}】`:''].filter(Boolean).join('_')+'.pdf';
-  }
-  function updateFileName(){
-    const m=+document.getElementById('f_month').value||0;
-    document.querySelectorAll('#perBtns button').forEach(b=>{
-      const p=b.dataset.p;
-      b.classList.toggle('active', p===periodStyle);
-      b.textContent = p==='h1'?`${m}月前半分` : p==='h2'?`${m}月後半分` : p==='m1'?`${m}月_月1回` : `${m}月分`;
+  function buildGroups(){
+    const m = +targetYM.slice(4,6);
+    const names = [...new Set(items.map(it=>it.client).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja'));
+    return names.map(c=>{
+      const style = clientStyle[c] || null;
+      const g = { client:c, style, inc:[], otherMonth:[], otherHalf:[] };   // inc 等は items の番号
+      items.forEach((it,i)=>{
+        if(it.client!==c) return;
+        if(!hasDate(it)) g.inc.push(i);                                     // 日付が読めないものは入れて、注意を出す
+        else if(it.date.slice(0,6)!==targetYM) g.otherMonth.push(i);        // 別の月の報告書は入れない
+        else if(style==='half' && halfOf(it.date)!==roundHalf) g.otherHalf.push(i);
+        else g.inc.push(i);
+      });
+      g.later = (style==='m1' || style==='mo') && roundHalf==='h1';        // 月1回・ひと月分は後半の提出で作る
+      g.label = style==='half' ? `${m}月${roundHalf==='h1'?'前半分':'後半分'}` : style==='m1' ? `${m}月_月1回` : `${m}月分`;
+      g.fileName = ['清掃報告書', g.label, `【${safeName(c)}】`].join('_')+'.pdf';
+      g.ready = !!style && !g.later && g.inc.length>0;
+      g.noDate = g.inc.filter(i=>!hasDate(items[i]));
+      const byKey = {};                                                    // 同じ物件・同じ清掃日が2つ以上
+      g.inc.forEach(i=>{ const it=items[i]; if(!hasDate(it)) return; const k=it.prop+'|'+it.date; (byKey[k]=byKey[k]||[]).push(i); });
+      g.dups = Object.values(byKey).filter(a=>a.length>1);
+      g.missing = (style && !g.later) ? missingFor(c, style) : [];
+      g.sig = g.fileName+'|'+g.inc.map(i=>items[i].id).join(',');
+      return g;
     });
-    document.getElementById('fnamePrev').innerHTML='保存されるファイル名<b>'+esc(outFileName())+'</b>';
+  }
+  /* 出し忘れの確認：その取引先で登録済みなのに、報告書が足りない物件
+     ・前半・後半に分けて … 月2回の物件はその半月に1枚。月1回の物件は後半の提出で、その月に1枚あるか
+     ・月1回／ひと月分 … その月に、月2回の物件は2日分・月1回の物件は1日分あるか */
+  function missingFor(c, style){
+    const monthDays = {}, halfDays = {};
+    items.forEach(it=>{
+      if(it.client!==c || !hasDate(it) || it.date.slice(0,6)!==targetYM) return;
+      (monthDays[it.prop]=monthDays[it.prop]||new Set()).add(it.date);
+      if(halfOf(it.date)===roundHalf) (halfDays[it.prop]=halfDays[it.prop]||new Set()).add(it.date);
+    });
+    const out = [];
+    Object.keys(propMap).forEach(p=>{
+      if(propMap[p]!==c) return;
+      const f = lookupFreq(p);
+      if(style==='half'){
+        if(f==='2'){ if(!halfDays[p]) out.push({ p, f, msg:'' }); }
+        else if(roundHalf==='h2' && !monthDays[p]) out.push({ p, f, msg:'前半に出していれば問題なし' });
+      }else{
+        const n = monthDays[p] ? monthDays[p].size : 0;
+        if(!n) out.push({ p, f, msg:'' });
+        else if(f==='2' && n<2) out.push({ p, f, msg:'1回分だけ', some:true });   // 報告書はあるので登録の整理ボタンは出さない
+      }
+    });
+    return out.sort((a,b)=>a.p.localeCompare(b.p,'ja'));
+  }
+  function fmtCreated(d){
+    if(!(d instanceof Date) || isNaN(d)) return '作成日時不明';
+    return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}作成`;
+  }
+
+  function renderGroups(){
+    _groups = buildGroups(); _missRows = [];
+    const has = items.length>0;
+    document.getElementById('groupsEmpty').style.display = has ? 'none' : 'block';
+    document.getElementById('sortbar').style.display = has ? 'flex' : 'none';
+    document.getElementById('groupsHint').style.display = has ? 'block' : 'none';
+    document.getElementById('sortDate').classList.toggle('active', curSort==='date');
+    document.getElementById('sortName').classList.toggle('active', curSort==='prop');
+    // まとめ方の選択が要るもの → 今回作るもの → 今回は作らないもの の順に並べる
+    const rank = g => !g.style ? 0 : g.ready ? 1 : 2;
+    document.getElementById('groups').innerHTML = _groups.map((g,gi)=>({g,gi}))
+      .sort((a,b)=>rank(a.g)-rank(b.g)).map(({g,gi})=>groupHTML(g,gi)).join('');
+    renderAbsent();
+    updateSaveState();
+  }
+  function groupHTML(g, gi){
+    const m = +targetYM.slice(4,6);
+    // 件数は「このPDFに入る数」。まだ作らない取引先は読み込んだ数
+    const n = (g.style && !g.later) ? g.inc.length : g.inc.length + g.otherMonth.length + g.otherHalf.length;
+    const pick = s => `setClientStyle(_groups[${gi}].client,'${s}')`;
+    const sel = `<select class="cg-style" onchange="setClientStyle(_groups[${gi}].client, this.value)" title="この取引先のまとめ方">`+
+      (g.style ? '' : '<option value="" selected>まとめ方：未設定</option>')+
+      Object.keys(STYLE_LABEL).map(s=>`<option value="${s}"${g.style===s?' selected':''}>${STYLE_LABEL[s]}</option>`).join('')+
+      `</select>`;
+    const head = `<div class="cg-head"><span class="cg-name">🏢 ${esc(g.client)}</span><span class="cg-cnt">${n}件</span>${sel}</div>`;
+    if(!g.style){
+      return `<div class="cg needstyle">${head}
+        <p class="cg-note"><b>この取引先のまとめ方を選んでください（最初の1回だけ）</b></p>
+        <div class="cg-pick">
+          <button onclick="${pick('half')}">前半・後半に分けて提出<small>例：清掃報告書_${m}月前半分_【${esc(g.client)}】</small></button>
+          <button onclick="${pick('m1')}">月1回の提出<small>例：清掃報告書_${m}月_月1回_【${esc(g.client)}】</small></button>
+          <button onclick="${pick('mo')}">ひと月分をまとめて提出<small>例：清掃報告書_${m}月分_【${esc(g.client)}】</small></button>
+        </div></div>`;
+    }
+    if(g.later){
+      return `<div class="cg later">${head}
+        <p class="cg-note">「${esc(g.label)}」は後半・月末の提出で作ります（今回は作りません）。月末に、今回の報告書もいっしょに入れてください。</p></div>`;
+    }
+    const dupSet = new Set(g.dups.flat());
+    const open = openGroups.has(g.client) || g.dups.length>0;          // 重複があるときは × を押せるよう開いておく
+    let h = `<div class="cg${g.ready?' ready':''}">${head}<div class="cg-fname">📄 ${esc(g.fileName)}</div>`;
+    if(!g.inc.length) h += `<p class="cg-note">今回の提出に入る報告書がありません。</p>`;
+    if(g.dups.length){
+      h += `<div class="cg-warn dup"><div class="cw-title">⚠️ 同じ物件・同じ日の報告書が2つ以上あります</div>`+
+        g.dups.map(a=>'・'+esc(items[a[0]].prop)+' '+fmtDate(items[a[0]].date)+'（'+a.map(i=>fmtCreated(items[i].created)).join(' と ')+'）').join('<br>')+
+        `<br>作り直した報告書なら、作成時刻が早い方（古い方）を下の一覧の × で外してください。</div>`;
+    }
+    if(g.noDate.length) h += `<div class="cg-warn dup">⚠️ 清掃日が読み取れない報告書が${g.noDate.length}件あります（このPDFに入れてあります。中身を確かめてください）</div>`;
+    if(g.missing.length){
+      h += `<div class="cg-warn miss"><div class="cw-title">📋 報告書が見当たりません（出し忘れ？）</div>`+
+        g.missing.map(x=>{
+          const k = _missRows.push(x)-1;
+          return `<div class="miss-row"><span class="mr-name">・${esc(x.p)}（${x.f==='1'?'月1回':'月2回'}${x.msg?'・'+esc(x.msg):''}）</span>`+
+            (x.some ? '' :
+            `<button onclick="mergeInto(${k})" title="別の物件と同じものにまとめる">まとめる</button>`+
+            `<button onclick="dropMissing(${k})" title="この登録を削除">×</button>`)+`</div>`;
+        }).join('')+`</div>`;
+    }
+    if(g.inc.length){
+      h += g.dups.length ? '' : `<button class="cg-toggle" onclick="toggleGroup(${gi})">${open?'▼ 報告書を隠す':'▶ 報告書を表示'}（${g.inc.length}件）</button>`;
+      if(open) h += `<ul class="plist">${g.inc.map((i,pos)=>rowHTML(i, pos, g.inc.length, dupSet)).join('')}</ul>`;
+    }
+    const skip = [];
+    if(g.otherHalf.length) skip.push(`${roundHalf==='h2'?'前半':'後半'}の報告書 ${g.otherHalf.length}件`);
+    if(g.otherMonth.length) skip.push(`${m}月以外の報告書 ${g.otherMonth.length}件`);
+    if(skip.length) h += `<p class="cg-note">※ ${skip.join('、')}は、このPDFに入れていません。</p>`;
+    if(g.ready){
+      const done = savedSig[g.client]===g.sig;
+      h += `<div class="cg-foot"><button class="cg-save" onclick="saveGroup(${gi})"${saving?' disabled':''}>${done?'もう一度保存':'このPDFだけ保存'}</button>`+
+           (done ? `<span class="cg-done">✅ 保存しました</span>` : '')+`</div>`;
+    }
+    return h+'</div>';
+  }
+  function rowHTML(i, pos, len, dupSet){
+    const it = items[i];
+    return `<li>
+      <span class="no">${pos+1}</span>
+      <span class="dt${it.date?'':' none'}">${fmtDate(it.date)}</span>
+      <span class="nm-wrap"><span class="nm">${esc(it.prop||it.name)}${dupSet.has(i)?'<span class="tag">重複・'+fmtCreated(it.created)+'</span>':''}</span></span>
+      <button onclick="move(${i},-1)" ${pos===0?'disabled':''} title="上へ">↑</button>
+      <button onclick="move(${i},1)" ${pos===len-1?'disabled':''} title="下へ">↓</button>
+      <button class="rm" onclick="remove(${i})" title="このPDFから外す">×</button>
+    </li>`;
+  }
+  function toggleGroup(gi){
+    const c = (_groups[gi]||{}).client; if(!c) return;
+    if(openGroups.has(c)) openGroups.delete(c); else openGroups.add(c);
+    renderGroups();
+  }
+  // ↑↓は同じPDFに入る報告書どうしで入れかえる
+  function move(i,d){
+    const g = _groups.find(g=>g.inc.includes(i)); if(!g) return;
+    const j = g.inc[g.inc.indexOf(i)+d]; if(j===undefined) return;
+    curSort = null; [items[i],items[j]] = [items[j],items[i]]; renderGroups();
+  }
+  function remove(i){ items.splice(i,1); renderAll(); }
+
+  /* 1件も入っていない取引先（まるごと出し忘れ）を知らせる。
+     前半の提出では「前半・後半に分けて」の取引先だけ、後半の提出では登録されている全部の取引先が対象 */
+  function renderAbsent(){
+    const box = document.getElementById('absent');
+    const loaded = new Set(items.filter(it=>!hasDate(it) || it.date.slice(0,6)===targetYM).map(it=>it.client));
+    const list = items.length ? clientList().filter(c=>!loaded.has(c) && (roundHalf==='h2' || clientStyle[c]==='half')) : [];
+    if(!list.length){ box.style.display='none'; return; }
+    box.style.display='block';
+    box.innerHTML = `📋 今回の報告書が1件も入っていない取引先があります（出し忘れ？）<br>`+
+      list.map(c=>'・'+esc(c)+(clientStyle[c]?'（'+STYLE_LABEL[clientStyle[c]]+'）':'')).join('<br>')+
+      `<br><span style="font-weight:400">今月は清掃が無い取引先なら、そのままで大丈夫です。</span>`;
   }
 
   /* ===== 新規物件モーダル（取り込むか／取引先／頻度 を質問） ===== */
   let _resolver = null, _chipClients = [], _modalMode = 'new', _pickClient = null, _pickFreq = null;
   let _sameName = null, _mergeTargets = [], _hintName = null;
-  function resolveNewProperty(prop, mode='new', preset=null, similar=null, hint=null){
+  function resolveNewProperty(prop, mode='new', preset=null, similar=null, hint=null, progress=''){
     return new Promise(res=>{
       _resolver = res; _modalMode = mode; _pickClient = null; _pickFreq = null;
       _sameName = similar||null; _hintName = hint||null;
       document.getElementById('mProp').textContent = prop || '（物件名が読み取れませんでした）';
-      document.getElementById('mTitle').textContent = mode==='edit' ? '取引先・頻度を変更' : '新しい物件です';
+      document.getElementById('mTitle').textContent = mode==='edit' ? '取引先・頻度を変更'
+        : '新しい物件です'+(progress ? `（${progress}）` : '');
       document.getElementById('mMsg').textContent = mode==='edit'
         ? 'この物件の取引先と清掃頻度を選び直してください。'
         : 'この物件を取り込みますか？取引先と清掃頻度を選んでください。';
@@ -762,12 +887,18 @@
         : '<span class="m-none">まだ登録された取引先はありません</span>';
       document.getElementById('mSubExisting').style.display = _chipClients.length ? 'block' : 'none';
       document.getElementById('mNewClient').value='';
-      document.getElementById('mSelClient').style.display='none';
+      const selEl=document.getElementById('mSelClient');
+      selEl.className='m-sel empty'; selEl.textContent='取引先：まだ選ばれていません';
       document.querySelectorAll('#mFreq button').forEach(b=>b.classList.remove('sel'));
       if(preset){
         if(preset.client){ const i=_chipClients.indexOf(preset.client); if(i>=0){ pickChip(i); } else { setNewClientVal(preset.client); } }
         if(preset.freq){ setFreq(preset.freq); }
       }
+      const pre=document.getElementById('mPreset');
+      if(mode==='new' && preset && preset.from){
+        pre.textContent='似た名前の「'+preset.from+'」に合わせて選んであります。違うときは選び直してください。';
+        pre.style.display='block';
+      }else{ pre.style.display='none'; }
       // 似た名前が見つかったときは、まず「同じ物件か」だけを聞く。
       // 「いいえ」を選んだ時点で、いつもの新規登録の画面に切り替わる
       const sameBox=document.getElementById('mSame');
@@ -867,7 +998,7 @@
   }
   function showSelClient(){
     const el=document.getElementById('mSelClient');
-    el.style.display='block'; el.textContent='取引先：'+_pickClient;
+    el.className='m-sel'; el.textContent='取引先：'+_pickClient;
   }
   function setFreq(f){
     _pickFreq = f;
@@ -921,10 +1052,16 @@
           <button class="rm" onclick="delMapping(${o.idx})" title="削除">×</button>
         </div>`;
       }).join('');
+      const st = clientStyle[c] || '';
+      const styleSel = `<select class="mg-style" onclick="event.stopPropagation()" onchange="setClientStyle(_mgmtClientNames[${ci}], this.value)" title="この取引先のまとめ方">`+
+        (st ? '' : '<option value="" selected>まとめ方：未設定</option>')+
+        Object.keys(STYLE_LABEL).map(s=>`<option value="${s}"${st===s?' selected':''}>${STYLE_LABEL[s]}</option>`).join('')+
+        `</select>`;
       return `<div class="mg-client">
         <div class="mg-cname" onclick="toggleClient(${ci})">
           <span class="mg-caret">${open?'▼':'▶'}</span>
           <span class="mg-ctitle">🏢 ${esc(c)}</span>
+          ${styleSel}
           <span class="mg-cnt">${byClient[c].length}</span>
         </div>
         <div class="mg-rows" style="display:${open?'block':'none'}">${rows}</div>
@@ -944,7 +1081,7 @@
     const prop = _mgmtEntries[idx][0];
     if(!confirm(`「${prop}」の登録を削除しますか？\n（次回この物件を取り込むと、また取引先を確認します）`)) return;
     delete propMap[prop]; delete freqMap[prop]; saveMap(); saveFreq();
-    renderMgmt();
+    renderAll();                                          // 出し忘れの一覧からも消す
   }
 
   /* ===== 物件一覧の書き出し =====
@@ -1032,18 +1169,18 @@
       val.textContent='未設定（ブラウザのダウンロード先）';
       pick.textContent='フォルダを選ぶ'; clr.style.display='none';
     }
-    document.getElementById('btnMerge').textContent = outDirHandle ? '📚 結合して保存' : '📚 結合してダウンロード';
+    updateSaveState();                                // ボタンの「保存／ダウンロード」の言い方を合わせる
   }
   async function pickSaveDir(){
     try{
       const h=await window.showDirectoryPicker({ id:'must-matome-out', mode:'readwrite' });
       outDirHandle=h; await idbPut(DIR_KEY,h); renderSaveDir();
-      setStatus('ok','✅ 保存先を「'+h.name+'」にしました。次回からもここに保存します。');
+      setStatus('ok','✅ 保存先を「'+h.name+'」にしました。次回からもここに保存します。','saveStatus');
     }catch(e){ /* 利用者がキャンセルした場合は何もしない */ }
   }
   async function clearSaveDir(){
     outDirHandle=null; await idbPut(DIR_KEY,null); renderSaveDir();
-    setStatus('','');
+    setStatus('','','saveStatus');
   }
   /* 覚えているフォルダを呼び戻す。権限は開き直すたびに確認が要ることがある */
   async function restoreSaveDir(){
@@ -1078,9 +1215,9 @@
     updateQHint();
   }
   function fmtSize(b){ return b>=1048576 ? (b/1048576).toFixed(1)+' MB' : Math.max(1,Math.round(b/1024))+' KB'; }
-  function estBytes(){                                   // まとめPDFのおおよその合計サイズを見積もる
-    const n=items.length; if(!n) return 0;
-    if(quality==='hi') return items.reduce((s,it)=>s+(it.bytes.byteLength||0),0);
+  function estBytes(list){                               // まとめPDFのおおよその合計サイズを見積もる
+    const n=list.length; if(!n) return 0;
+    if(quality==='hi') return list.reduce((s,it)=>s+(it.bytes.byteLength||0),0);
     return n*(quality==='std' ? 250000 : quality==='mid' ? 190000 : 110000);   // 1ページあたりの目安（200/170/130DPI）
   }
   function updateQHint(){
@@ -1089,45 +1226,80 @@
                  mid:'約170DPIに再圧縮。印刷も十分で標準より軽い',
                  lite:'約130DPIに再圧縮。画面確認・大量送付向き（最も軽い）' };
     let t=desc[quality];
-    if(items.length){ const b=estBytes(); t+=` ｜ 推定サイズ：約 ${fmtSize(b)}`+(b>25*1048576?'（⚠️ 25MB超）':''); }
+    const sizes=_groups.filter(g=>g.ready).map(g=>estBytes(g.inc.map(i=>items[i])));
+    if(sizes.length){
+      const b=Math.max(...sizes);
+      t+=` ｜ 推定サイズ：${sizes.length>1?'いちばん大きいPDFで':''}約 ${fmtSize(b)}`+(b>25*1048576?'（⚠️ 25MB超）':'');
+    }
     document.getElementById('qHint').textContent=t;
   }
 
-  async function merge(){
+  /* ===== 保存 =====
+     「まとめて保存」は今回作る取引先の分を1社ずつ順に作って保存する。カードの「このPDFだけ保存」は1社分だけ */
+  let saving = false;
+  function updateSaveState(){
+    const ready=_groups.filter(g=>g.ready);
+    const verb=outDirHandle ? '保存' : 'ダウンロード';
     const btn=document.getElementById('btnMerge');
-    btn.disabled=true;
-    setStatus('ok', quality==='hi' ? '結合中…少しお待ちください' : '軽量化して結合中…（枚数が多いと少し時間がかかります）');
-    try{
-      const out = quality==='hi' ? await buildLossless() : await buildCompressed(QCFG[quality]);
-      const bytes = await out.save();
-      const pageCount = out.getPageCount();
-      const name = outFileName();                       // 清掃報告書_○月△半分_【取引先名】.pdf
-      const cs = clientsInList();                       // 月1回の書き方は取引先ごとに覚えて次回も同じにする
-      if(cs.length===1 && (periodStyle==='m1'||periodStyle==='mo')){ pStyleMap[cs[0]]=periodStyle; persist(LS_PSTYLE, pStyleMap); }
-      let where='';
-      if(await saveToDir(bytes, name)){                 // 保存先フォルダが設定済み＝そこへ直接書く
-        where='（'+outDirHandle.name+' に保存）';
-      }else{
-        if(outDirHandle){ where='（フォルダに書けなかったのでダウンロードしました）'; }
-        const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
-        const a=document.createElement('a'); a.href=url; a.download=name; a.click();
-        setTimeout(()=>URL.revokeObjectURL(url), 10000);
-      }
-      const over = bytes.length > 25*1048576;
-      setStatus(over?'ng':'ok',
-        `✅ ${items.length}件・${pageCount}ページ / ${fmtSize(bytes.length)}「${name}」を保存しました${where}`+
-        (over?' ⚠️ 25MBを超えています。「軽量」を選ぶか、ファイルを分けて送ってください。':''));
-    }catch(err){
-      setStatus('ng','結合に失敗しました：'+(err&&err.message||err));
+    btn.disabled = !ready.length || saving;
+    btn.textContent = ready.length ? `📚 ${ready.length}社分のPDFをまとめて${verb}` : `📚 まとめて${verb}`;
+    const hints=[];
+    const need=_groups.filter(g=>!g.style).length;
+    if(need) hints.push(`まとめ方が未設定の取引先が${need}社あります（選ぶまで保存されません）。`);
+    if(ready.length>1 && !outDirHandle){
+      hints.push(canPickDir ? '「フォルダを選ぶ」で保存先を決めておくと、全部のPDFがそのフォルダに直接入ります。'
+                            : '「複数のファイルのダウンロード」の確認が出たら「許可」を押してください。');
     }
-    updateMergeState();
+    document.getElementById('saveHint').textContent=hints.join(' ');
+    updateQHint();
   }
-  function forceMerge(){ mixOverride=true; updateMergeState(); merge(); }
+  function download(bytes, name){
+    const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
+    const a=document.createElement('a'); a.href=url; a.download=name; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 10000);
+  }
+  // 1社分のPDFを作って保存する。保存先フォルダに書けなければダウンロードに切り替える
+  async function saveOne(g){
+    const list=g.inc.map(i=>items[i]);
+    const out = quality==='hi' ? await buildLossless(list) : await buildCompressed(QCFG[quality], list);
+    const bytes = await out.save();
+    const toDir = await saveToDir(bytes, g.fileName);
+    if(!toDir) download(bytes, g.fileName);
+    savedSig[g.client]=g.sig;
+    return { name:g.fileName, pages:out.getPageCount(), size:bytes.length, toDir };
+  }
+  function saveGroup(gi){ const g=_groups[gi]; if(g && g.ready) runSave([g]); }
+  function saveAll(){ return runSave(_groups.filter(g=>g.ready)); }
+  async function runSave(list){
+    if(saving || !list.length) return;
+    saving=true; renderGroups();
+    const done=[];
+    try{
+      for(const [k,g] of list.entries()){
+        setStatus('ok', (list.length>1 ? `${k+1}/${list.length}社目　` : '')+`「${g.fileName}」を作っています…`+
+          (quality==='hi' ? '' : '\n（軽量化しているので少し時間がかかります）'), 'saveStatus');
+        const r=await saveOne(g);
+        done.push(r);
+        if(!r.toDir && k<list.length-1) await new Promise(res=>setTimeout(res,700));   // ダウンロードが続くと止められることがあるので少し間をあける
+      }
+      const over=done.filter(r=>r.size>25*1048576);
+      const inDir=done.filter(r=>r.toDir).length;
+      let msg = `✅ ${done.length}件のPDFを`+(inDir===done.length ? `「${outDirHandle.name}」フォルダに保存しました` : 'ダウンロードしました');
+      if(outDirHandle && inDir<done.length) msg+='\n（フォルダに書けなかった分はダウンロードしました）';
+      msg += '\n'+done.map(r=>`・${r.name}（${r.pages}ページ / ${fmtSize(r.size)}）`).join('\n');
+      if(over.length) msg+='\n⚠️ 25MBを超えたPDFがあります。「軽量」を選んで作り直すか、分けて送ってください。';
+      setStatus(over.length?'ng':'ok', msg, 'saveStatus');
+    }catch(err){
+      setStatus('ng', `${done.length+1}件目で失敗しました：`+(err&&err.message||err)+
+        (done.length ? `\n（その前の${done.length}件は保存できています）` : ''), 'saveStatus');
+    }
+    saving=false; renderGroups();
+  }
 
   /* 無劣化：各PDFのページをそのままコピー（今までどおり） */
-  async function buildLossless(){
+  async function buildLossless(list){
     const out = await PDFLib.PDFDocument.create();
-    for(const it of items){
+    for(const it of list){
       const src = await PDFLib.PDFDocument.load(it.bytes, { ignoreEncryption:true });
       const pages = await out.copyPages(src, src.getPageIndices());
       pages.forEach(p=>out.addPage(p));
@@ -1137,10 +1309,10 @@
 
   /* 再圧縮：pdf.jsで各ページを目標DPIで描き直し→JPEG再圧縮→A4に貼り直して結合。
      元の各報告書PDFは変更せず、まとめPDFだけを軽くする（原本＝月末印刷用は高画質のまま）。 */
-  async function buildCompressed(cfg){
+  async function buildCompressed(cfg, list){
     const out = await PDFLib.PDFDocument.create();
     const A4W=595.28, A4H=841.89;
-    for(const it of items){
+    for(const it of list){
       const doc = await pdfjsLib.getDocument({ data: it.bytes.slice(0) }).promise;  // sliceで原本ArrayBufferを守る
       try{
         for(let pn=1; pn<=doc.numPages; pn++){
@@ -1161,14 +1333,13 @@
   }
   function dataURLtoU8(u){ const b=atob(u.split(',')[1]); const a=new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a; }
 
-  function setStatus(type,msg){ const s=document.getElementById('status');
+  // 取り込み・登録まわりのお知らせは 1 の欄（status）、保存の結果は 4 の欄（saveStatus）に出す
+  function setStatus(type,msg,id='status'){ const s=document.getElementById(id);
     s.className='status'+(type?' '+type:''); s.textContent=msg; }
   function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
-  renderMgmt();       // 起動時に登録一覧を表示
-  updateQHint();      // 起動時に画質ヒントを表示
-  initMonthSelect();  // 期間の月プルダウン（初期＝今月）
-  updateFileName();   // 起動時にファイル名プレビューを表示
+  initMonthSelect();  // 月のプルダウン（初期＝今月）
+  renderAll();        // 起動時に登録一覧・画質ヒントなどを表示
   restoreSaveDir();   // 前回選んだ保存先フォルダを呼び戻す（未対応ブラウザでは行ごと隠れる）
 </script>
 </body>
