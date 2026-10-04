@@ -141,6 +141,22 @@
   .mg-pname{ flex:1; font-size:13px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .mg-row button{ flex:none; width:30px; height:30px; border:1px solid var(--line); border-radius:8px; background:#fff; cursor:pointer; }
   .mg-row button.rm{ color:var(--orange2); }
+  /* まとめた名前（別名）。まとめ先の物件の下に一段さげて出す */
+  .mg-alias{ display:flex; align-items:center; gap:8px; padding:0 0 4px 18px; }
+  .mg-aname{ flex:1; min-width:0; font-size:12px; color:var(--muted); overflow-wrap:anywhere; line-height:1.5; }
+  .mg-alias button{ flex:none; padding:4px 10px; font-size:12px; font-weight:700; border:1px solid var(--navy2);
+    border-radius:7px; background:#fff; color:var(--navy2); cursor:pointer; white-space:nowrap; }
+
+  /* まとめた直後だけ出る「取り消す」 */
+  .undo-bar{ position:fixed; left:50%; bottom:16px; transform:translateX(-50%); width:calc(100% - 32px); max-width:560px;
+    background:var(--navy); color:#fff; border-radius:12px; padding:8px 40px 8px 14px; box-shadow:0 6px 24px rgba(20,30,50,.3);
+    z-index:40; display:none; }
+  .ub-row{ display:flex; align-items:center; gap:10px; padding:4px 0; }
+  .ub-msg{ flex:1; min-width:0; font-size:13px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
+  .ub-undo{ flex:none; padding:7px 13px; border:none; border-radius:8px; background:var(--orange); color:#fff;
+    font-weight:800; font-size:13px; cursor:pointer; white-space:nowrap; }
+  .ub-close{ position:absolute; top:6px; right:6px; width:30px; height:30px; border:none; background:transparent;
+    color:#fff; opacity:.7; font-size:16px; cursor:pointer; }
 
   /* 大量登録に備えた整理：件数表示・検索・スクロール上限 */
   .list-count{ font-size:12px; font-weight:700; color:var(--muted); margin:10px 2px 0; }
@@ -186,6 +202,11 @@
   .modal{ background:#fff; border-radius:16px; padding:18px; max-width:420px; width:100%; max-height:86vh; overflow:auto; }
   .modal h3{ margin:0 0 6px; color:var(--navy); font-size:16px; }
   .m-prop{ font-size:17px; font-weight:800; color:var(--orange2); margin:4px 0 10px; word-break:break-all; }
+  .modal input.m-prop-edit{ font-size:17px; font-weight:800; color:var(--navy); margin:4px 0 10px; }
+  .m-name-err{ margin:-4px 2px 10px; font-size:12.5px; font-weight:700; color:#b3500a; }
+  /* まとめるボタンの2行目：「消える名前」→「残る名前」 */
+  .mv{ display:block; margin-top:3px; font-size:12.5px; font-weight:400; line-height:1.5; overflow-wrap:anywhere; }
+  .mv b{ font-weight:800; }
   .m-msg{ font-size:13px; color:var(--muted); margin:0 0 12px; }
   .m-sub{ font-size:12px; font-weight:700; color:var(--muted); margin:0 0 7px; }
   .m-clients{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
@@ -293,7 +314,7 @@
     <div class="scroll-box" id="mgmtScroll"><div id="mgmtList"></div></div>
     <button class="btn-copy" id="btnCopyList" onclick="copyPlaceList()">📋 物件一覧をコピー（現場のスマホに配る用）</button>
     <p class="copy-note" id="copyNote"></p>
-    <p class="hint">取引先名をタップで開閉。右の欄＝その取引先のまとめ方、✎＝取引先の付け替え、×＝登録の削除。誤って登録した物件はここで直せます。</p>
+    <p class="hint">取引先名をタップで開閉。右の欄＝その取引先のまとめ方、✎＝物件名・取引先の変更、×＝登録の削除。誤って登録した物件はここで直せます。</p>
   </div>
 
 
@@ -304,23 +325,28 @@
   <div class="modal">
     <h3 id="mTitle">新しい物件です</h3>
     <p class="m-prop" id="mProp"></p>
+    <!-- ✎ の画面だけ、物件名そのものを直せる -->
+    <input type="text" class="m-prop-edit" id="mPropEdit" style="display:none" oninput="updateConfirm()">
+    <p class="m-name-err" id="mNameErr" style="display:none"></p>
     <p class="m-msg" id="mMsg">この物件を取り込みますか？取引先と清掃頻度を選んでください。</p>
-    <!-- 似た名前が登録済みのときだけ出る。ここで「同じ」と答えれば新規登録せずにまとめる -->
+    <!-- 似た名前が登録済みのときだけ出る。ここで「同じ」と答えれば新規登録せずにまとめる。
+         ボタンには「どちらの名前が残るか」を矢印の形で出す（矢印の先が残る） -->
     <div class="m-same" id="mSame" style="display:none">
       <p class="ms-q">登録ずみの <b id="msName"></b> と同じ物件ではありませんか？</p>
-      <button class="ms-yes" onclick="answerSame(true)">はい、同じ物件です（まとめる）</button>
+      <button class="ms-yes" onclick="answerSame(true)">はい、同じ物件です<span class="mv">「<span id="msFrom"></span>」→「<b id="msTo"></b>」にまとめる</span></button>
       <button class="ms-no" onclick="answerSame(false)">いいえ、別の物件です</button>
     </div>
     <!-- 判定が微妙なもの。既定は新規登録のまま＝押さなければ何も起きない -->
     <div class="m-hint" id="mHint" style="display:none">
       <p class="mh-q">似た名前が登録されています：<b id="mhName"></b><br>
         別の物件ならこのまま取引先を選んでください。</p>
-      <button class="mh-yes" onclick="useHint()">同じ物件だった（まとめる）</button>
+      <button class="mh-yes" onclick="useHint()">同じ物件だった<span class="mv">「<span id="mhFrom"></span>」→「<b id="mhTo"></b>」にまとめる</span></button>
     </div>
-    <!-- 「まとめる」＝この名前を、どの物件の別名にするか選ぶ -->
+    <!-- 「まとめる」＝この名前を、どの物件の別名にするか選ぶ。選んでから矢印の形のボタンで確定 -->
     <div class="m-merge" id="mMerge" style="display:none">
       <p class="m-sub">どの物件と同じですか？</p>
       <div class="m-clients" id="mMergeList"></div>
+      <button class="m-confirm" id="mMergeGo" onclick="doMerge()" disabled>まとめる</button>
     </div>
     <div id="mNormal">
     <!-- 選ぶ前から場所を取っておく（選んだ瞬間に下のボタンがずれて押し間違えるのを防ぐ） -->
@@ -343,6 +369,8 @@
     <button class="m-skip" id="mSkip" onclick="resolvePick(null)">取り込まない（除外）</button>
   </div>
 </div>
+
+<div class="undo-bar" id="undoBar"></div>
 
 <script>
   let items = [];          // {id, name, bytes, date, prop, client, created}
@@ -420,18 +448,29 @@
   const LS_ALIAS = 'must_property_alias';
   function loadAlias(){ try{ return JSON.parse(localStorage.getItem(LS_ALIAS)) || {}; }catch(e){ return {}; } }
   let aliasMap = loadAlias();
-  function saveAlias(){ persist(LS_ALIAS, aliasMap); }
+  /* 別名の元の書き方 { 照合キー: まとめたときの物件名 }。照合キーは全角→半角・ひらがな→カタカナ等に
+     直してあって画面に出すと別物に見えるので、登録一覧にはこちらを出す（この版より前の別名には無い） */
+  const LS_ALIAS_NAME = 'must_property_alias_name';
+  function loadAliasName(){ try{ return JSON.parse(localStorage.getItem(LS_ALIAS_NAME)) || {}; }catch(e){ return {}; } }
+  let aliasName = loadAliasName();
+  function saveAlias(){ persist(LS_ALIAS, aliasMap); persist(LS_ALIAS_NAME, aliasName); }
   function addAlias(variant, canonical){
     const k=normKey(variant);
-    if(!k || !canonical || k===normKey(canonical)) return;
-    aliasMap[k]=canonical; saveAlias();
+    if(!k || !canonical || k===normKey(canonical)) return null;
+    aliasMap[k]=canonical; aliasName[k]=variant; saveAlias();
+    return k;
+  }
+  function hasProp(p){ return Object.prototype.hasOwnProperty.call(propMap, p); }
+  function aliasLabel(k){
+    const it = items.find(it=>it.raw && normKey(it.raw)===k);   // 古い別名は、取り込み中のPDFの書き方で代用
+    return aliasName[k] || (it && it.raw) || k;
   }
   // 取り込んだ物件名を、登録ずみの表記に寄せる（別物件として二重登録されるのを防ぐ）
   function canonProp(prop){
     if(!prop) return prop;
-    if(Object.prototype.hasOwnProperty.call(propMap, prop)) return prop;
+    if(hasProp(prop)) return prop;
     const k=normKey(prop);
-    if(aliasMap[k] && Object.prototype.hasOwnProperty.call(propMap, aliasMap[k])) return aliasMap[k];
+    if(aliasMap[k] && hasProp(aliasMap[k])) return aliasMap[k];
     return normIndex()[k] || prop;
   }
 
@@ -557,13 +596,15 @@
     const files = [...fileList].filter(f=>/\.pdf$/i.test(f.name) || f.type==='application/pdf');
     if(!files.length){ setStatus('ng','PDFファイルを選んでください。'); return; }
     const fixed = [];                                  // 表記ゆれを登録ずみの表記に寄せた分
+    const merged = [];                                 // 「同じ物件です」と答えてまとめた分（取り消せるようにする）
     let sameCnt = 0;                                   // 中身まで同じだったので1つにした数
     // ① 先に全部読む。新しい物件が何件あるか数えて、確認画面に「1/3」と出すため
     const metas = [];
     for(const f of files){
       if(items.some(it=>it.name===f.name) || metas.some(m=>m.name===f.name)) continue;   // 同名は二重登録しない
       const bytes = await f.arrayBuffer();
-      metas.push({ name:f.name, bytes, ...(await readMeta(bytes, f.name)) });
+      const meta = await readMeta(bytes, f.name);
+      metas.push({ name:f.name, bytes, ...meta, raw:meta.prop });   // raw＝PDFに書かれていた物件名（切り離すときに使う）
     }
     const unknown = new Set();
     metas.forEach(m=>{ const p=canonProp(m.prop); if(lookupClient(p)===null) unknown.add(p || '（名前なし）'+m.name); });
@@ -584,7 +625,8 @@
         const res = await resolveNewProperty(m.prop, 'new', preset, near, hint, unknown.size>1 ? `${unknown.size}件中${Math.min(asked,unknown.size)}件目` : '');
         if(res.skip){ if(m.prop) skipped.add(m.prop); continue; }   // 「取り込まない」→ このPDFは除外
         if(res.alias){                                 // 「同じ物件です」＝登録ずみの名前に寄せる
-          addAlias(m.prop, res.alias);
+          const k = addAlias(m.prop, res.alias);
+          if(k) merged.push({ type:'alias', k, name:m.prop, into:res.alias });
           fixed.push(`${m.prop} → ${res.alias}`);
           m.prop = res.alias;
           client = lookupClient(res.alias);
@@ -595,8 +637,9 @@
       }
       // LINEで同じ報告書が2回届くと、ファイル名だけ変わって中身は同じ（…(1).pdf）。中身まで同じなら1つにする
       if(items.some(it=>it.prop===m.prop && it.date===m.date && sameBytes(it.bytes, m.bytes))){ sameCnt++; continue; }
-      items.push({ id:++itemSeq, name:m.name, bytes:m.bytes, date:m.date, prop:m.prop, created:m.created, client });
+      items.push({ id:++itemSeq, name:m.name, bytes:m.bytes, date:m.date, prop:m.prop, raw:m.raw, created:m.created, client });
     }
+    undoList = merged;
     applySort();
     renderAll();
     const msgs = [];
@@ -619,7 +662,7 @@
      取引先・頻度・別名・まとめ方の登録（育てた資産）は残す */
   function resetAll(){
     if(items.length && !confirm('取り込んだPDF '+items.length+'件を全部消して、最初からやり直しますか？\n（取引先・物件の登録は消えません）')) return;
-    items=[]; curSort='date'; savedSig={}; openGroups.clear();
+    items=[]; curSort='date'; savedSig={}; openGroups.clear(); undoList=[];
     document.getElementById('pdfInput').value='';
     roundTouched=false; monthTouched=false;
     initMonthSelect();
@@ -635,7 +678,7 @@
     }
   }
 
-  function renderAll(){ autoRound(); renderRound(); renderGroups(); renderMgmt(); renderLoad(); }
+  function renderAll(){ autoRound(); renderRound(); renderGroups(); renderMgmt(); renderLoad(); renderUndo(); }
   function renderLoad(){
     const n = items.length;
     document.getElementById('btnReset').style.display = n ? 'block' : 'none';
@@ -868,18 +911,29 @@
 
   /* ===== 新規物件モーダル（取り込むか／取引先／頻度 を質問） ===== */
   let _resolver = null, _chipClients = [], _modalMode = 'new', _pickClient = null, _pickFreq = null;
-  let _sameName = null, _mergeTargets = [], _hintName = null;
+  let _sameName = null, _mergeTargets = [], _hintName = null, _editOrig = null;
+  function showPropName(text, editable){            // 物件名：ふだんは文字、✎ の画面だけ入力欄
+    const pe=document.getElementById('mPropEdit');
+    pe.value = editable ? text : ''; pe.style.display = editable ? 'block' : 'none';
+    const pv=document.getElementById('mProp');
+    pv.textContent = text; pv.style.display = editable ? 'none' : 'block';
+    document.getElementById('mNameErr').style.display='none';
+  }
   function resolveNewProperty(prop, mode='new', preset=null, similar=null, hint=null, progress=''){
     return new Promise(res=>{
       _resolver = res; _modalMode = mode; _pickClient = null; _pickFreq = null;
       _sameName = similar||null; _hintName = hint||null;
-      document.getElementById('mProp').textContent = prop || '（物件名が読み取れませんでした）';
-      document.getElementById('mTitle').textContent = mode==='edit' ? '取引先・頻度を変更'
-        : '新しい物件です'+(progress ? `（${progress}）` : '');
-      document.getElementById('mMsg').textContent = mode==='edit'
-        ? 'この物件の取引先と清掃頻度を選び直してください。'
-        : 'この物件を取り込みますか？取引先と清掃頻度を選んでください。';
-      document.getElementById('mSkip').textContent = mode==='edit' ? 'キャンセル' : '取り込まない（除外）';
+      _editOrig = mode==='edit' ? prop : null;
+      showPropName(prop || '（物件名が読み取れませんでした）', mode==='edit');
+      const T = {   // [見出し, 説明, やめるボタン, 決定ボタン]
+        new:   ['新しい物件です'+(progress ? `（${progress}）` : ''), 'この物件を取り込みますか？取引先と清掃頻度を選んでください。', '取り込まない（除外）', '取り込む'],
+        edit:  ['登録を変更', '物件名・取引先・清掃頻度を直せます。', 'キャンセル', '変更する'],
+        split: ['別の物件として登録', 'この物件の取引先と清掃頻度を選んでください。', 'キャンセル', '登録する'],
+      }[mode];
+      document.getElementById('mTitle').textContent = T[0];
+      document.getElementById('mMsg').textContent = T[1];
+      document.getElementById('mSkip').textContent = T[2];
+      document.getElementById('mConfirm').textContent = T[3];
       _chipClients = clientList();
       const cont = document.getElementById('mClients');
       cont.innerHTML = _chipClients.length
@@ -908,10 +962,14 @@
       const hintBox=document.getElementById('mHint');
       if(_hintName && mode==='new'){
         document.getElementById('mhName').textContent=_hintName;
+        document.getElementById('mhFrom').textContent=prop;
+        document.getElementById('mhTo').textContent=_hintName;
         hintBox.style.display='block';
       }else{ hintBox.style.display='none'; }
       if(_sameName && mode==='new'){
         document.getElementById('msName').textContent=_sameName;
+        document.getElementById('msFrom').textContent=prop;
+        document.getElementById('msTo').textContent=_sameName;
         sameBox.style.display='block'; normal.style.display='none';
         document.getElementById('mConfirm').style.display='none';
       }else{
@@ -946,31 +1004,97 @@
     const targets=[...new Set(items.map(it=>it.prop).filter(Boolean).concat(Object.keys(propMap)))]
       .filter(n=>n!==wrongName).sort((a,b)=>a.localeCompare(b,'ja'));
     if(!targets.length){ alert('まとめる先の物件がありません。'); return; }
-    _mergeTargets=targets; _sameName=null;
+    _mergeTargets=targets; _sameName=null; _modalMode='merge'; _mergePick=-1;
     document.getElementById('mTitle').textContent='どの物件と同じですか？';
-    document.getElementById('mProp').textContent=wrongName;
-    document.getElementById('mMsg').textContent='選ぶと、この名前は今後その物件として扱われます（登録は1つにまとまります）。';
+    showPropName(wrongName, false);
+    document.getElementById('mMsg').textContent='';
     document.getElementById('mSame').style.display='none';
+    document.getElementById('mHint').style.display='none';
     document.getElementById('mNormal').style.display='none';
     document.getElementById('mConfirm').style.display='none';
     document.getElementById('mSkip').textContent='キャンセル';
     document.getElementById('mMerge').style.display='block';
     document.getElementById('mMergeList').innerHTML =
-      targets.map((t,i)=>`<button class="chip" onclick="doMerge(${i})">${esc(t)}</button>`).join('');
+      targets.map((t,i)=>`<button class="chip" data-i="${i}" onclick="pickMerge(${i})">${esc(t)}</button>`).join('');
+    const go=document.getElementById('mMergeGo');
+    go.disabled=true; go.textContent='まとめる';
     _resolver=()=>{};                        // ×やキャンセルで閉じても何も起きないようにする
     document.getElementById('modalBg').style.display='flex';
     _mergeWrong=wrongName;
   }
-  let _mergeWrong=null;
-  function doMerge(i){
-    const target=_mergeTargets[i], wrong=_mergeWrong;
+  let _mergeWrong=null, _mergePick=-1;
+  // 選んだだけではまとめない。ボタンに「消える名前」→「残る名前」を出して、押したら確定
+  function pickMerge(i){
+    _mergePick=i;
+    document.querySelectorAll('#mMergeList .chip').forEach(b=>b.classList.toggle('sel', +b.dataset.i===i));
+    const go=document.getElementById('mMergeGo');
+    go.disabled=false; go.textContent='「'+_mergeWrong+'」→「'+_mergeTargets[i]+'」にまとめる';
+  }
+  function doMerge(){
+    const target=_mergeTargets[_mergePick], wrong=_mergeWrong;
     if(!target||!wrong) return;
+    const k=normKey(wrong);
+    // 取り消せるように、まとめる前の登録を控えておく
+    const rec={ type:'merge', k, name:wrong, into:target, client:propMap[wrong], freq:freqMap[wrong],
+                prevAlias:aliasMap[k], prevAliasName:aliasName[k], repointed:[], itemIds:[] };
     addAlias(wrong, target);                 // 次回から自動で寄せる
+    // この名前に寄せていた別名も、まとめ先へ付け替える（消える登録を指したままにしない）
+    Object.keys(aliasMap).forEach(a=>{ if(aliasMap[a]===wrong){ aliasMap[a]=target; rec.repointed.push(a); } });
+    saveAlias();
     delete propMap[wrong]; delete freqMap[wrong]; saveMap(); saveFreq();
-    items.forEach(it=>{ if(it.prop===wrong){ it.prop=target; it.client=lookupClient(target)||it.client; } });
+    items.forEach(it=>{ if(it.prop===wrong){ it.prop=target; it.client=lookupClient(target)||it.client; rec.itemIds.push(it.id); } });
     closeModal(); _mergeWrong=null;
+    undoList=[rec];
     renderAll();
     setStatus('ok','✅ 「'+wrong+'」を「'+target+'」にまとめました。次回から自動で同じ物件として扱います。');
+  }
+
+  /* ===== まとめたのを元に戻す =====
+     ・まとめた直後 … 画面下の「取り消す」
+     ・あとで気づいたとき … 登録一覧の「切り離す」 */
+  let undoList = [];                         // 直前の操作でまとめたもの
+  function undoValid(r){                     // まだまとまったままか（切り離し済みなら出さない）
+    return aliasMap[r.k]===r.into && hasProp(r.into) && !(r.type==='merge' && hasProp(r.name));
+  }
+  function renderUndo(){
+    undoList = undoList.filter(undoValid);
+    const bar=document.getElementById('undoBar');
+    if(!undoList.length){ bar.style.display='none'; document.body.style.paddingBottom=''; return; }
+    bar.innerHTML = undoList.map((r,i)=>`<div class="ub-row"><span class="ub-msg">「${esc(r.name)}」→「${esc(r.into)}」にまとめました</span>`+
+      `<button class="ub-undo" onclick="undoAt(${i})">取り消す</button></div>`).join('')+
+      `<button class="ub-close" onclick="undoList=[]; renderUndo();" title="閉じる">×</button>`;
+    bar.style.display='block';
+    document.body.style.paddingBottom = (bar.offsetHeight+28)+'px';   // いちばん下の欄が隠れないように
+  }
+  function undoAt(i){
+    const r=undoList[i]; if(!r || !undoValid(r)){ renderUndo(); return; }
+    if(r.type==='merge') undoMerge(r);
+    else splitAlias(r.k);                    // 取り込み時にまとめた分は取引先が未登録なので、その場で選ぶ
+  }
+  // 出し忘れ欄の「まとめる」を、まとめる前とまったく同じ状態に戻す
+  function undoMerge(r){
+    if(r.prevAlias===undefined) delete aliasMap[r.k]; else aliasMap[r.k]=r.prevAlias;
+    if(r.prevAliasName===undefined) delete aliasName[r.k]; else aliasName[r.k]=r.prevAliasName;
+    r.repointed.forEach(a=>{ if(aliasMap[a]===r.into) aliasMap[a]=r.name; });
+    saveAlias();
+    propMap[r.name]=r.client;
+    if(r.freq===undefined) delete freqMap[r.name]; else freqMap[r.name]=r.freq;
+    saveMap(); saveFreq();
+    items.forEach(it=>{ if(r.itemIds.includes(it.id) && it.prop===r.into){ it.prop=r.name; it.client=r.client; } });
+    renderAll();
+    setStatus('ok','✅ 「'+r.name+'」を元の別の物件に戻しました。');
+  }
+  // まとめた名前を切り離して、別の物件として登録し直す（取引先と頻度はその場で選ぶ）
+  async function splitAlias(k){
+    const into=aliasMap[k]; if(!into) return;
+    const name=aliasLabel(k);
+    const res=await resolveNewProperty(name, 'split');
+    if(res.skip || aliasMap[k]!==into) return;          // キャンセル
+    delete aliasMap[k]; delete aliasName[k]; saveAlias();
+    propMap[name]=res.client; freqMap[name]=res.freq; saveMap(); saveFreq();
+    items.forEach(it=>{ if(it.prop===into && it.raw && normKey(it.raw)===k){ it.prop=name; it.client=res.client; } });   // 取り込み中のPDFも分け直す
+    renderAll();
+    setStatus('ok','✅ 「'+name+'」を「'+into+'」から切り離して、別の物件として登録しました。');
   }
   /* 報告漏れの欄から、登録そのものを消す */
   function dropMissing(idx){
@@ -1005,10 +1129,25 @@
     document.querySelectorAll('#mFreq button').forEach(b=>b.classList.toggle('sel', b.dataset.f===f));
     updateConfirm();
   }
-  function updateConfirm(){ document.getElementById('mConfirm').disabled = !(_pickClient && _pickFreq); }
+  function updateConfirm(){
+    const nameOk = _modalMode!=='edit' || !!document.getElementById('mPropEdit').value.trim();
+    document.getElementById('mNameErr').style.display='none';
+    document.getElementById('mConfirm').disabled = !(_pickClient && _pickFreq && nameOk);
+  }
   function confirmModal(){
     if(!_pickClient || !_pickFreq) return;
-    closeModal(); const r=_resolver; _resolver=null; r({ client:_pickClient, freq:_pickFreq });
+    let name;
+    if(_modalMode==='edit'){
+      name = document.getElementById('mPropEdit').value.trim();
+      if(!name) return;
+      const clash = nameClash(_editOrig, name);
+      if(clash){
+        const e=document.getElementById('mNameErr');
+        e.textContent='この名前は「'+clash+'」で使われています'; e.style.display='block';
+        return;
+      }
+    }
+    closeModal(); const r=_resolver; _resolver=null; r({ client:_pickClient, freq:_pickFreq, name });
   }
   function resolvePick(v){
     if(v===null){ closeModal(); const r=_resolver; _resolver=null; r({ skip:true }); }
@@ -1018,8 +1157,12 @@
   /* ===== 取引先・物件の登録一覧（検索・折りたたみ・修正・削除） ===== */
   let _mgmtEntries = [];
   let _mgmtClientNames = [];
+  let _mgmtAliasKeys = [];
   function renderMgmt(){
     _mgmtEntries = Object.entries(propMap);
+    _mgmtAliasKeys = [];
+    const aliasOf = {};                                   // 物件名 → その物件にまとめた別名の照合キー
+    Object.keys(aliasMap).forEach(k=>{ const p=aliasMap[k]; if(hasProp(p)) (aliasOf[p]=aliasOf[p]||[]).push(k); });
     const total = _mgmtEntries.length;
     const allClients = new Set(Object.values(propMap));
     document.getElementById('mgmtEmpty').style.display = total ? 'none' : 'block';
@@ -1031,7 +1174,8 @@
     const q = mgmtQuery.trim().toLowerCase();
     const byClient = {};
     _mgmtEntries.forEach(([p,c],idx)=>{
-      if(q && !(p.toLowerCase().includes(q) || c.toLowerCase().includes(q))) return;  // 検索で絞り込み
+      if(q && !(p.toLowerCase().includes(q) || c.toLowerCase().includes(q)
+                || (aliasOf[p]||[]).some(k=>aliasLabel(k).toLowerCase().includes(q)))) return;  // 検索で絞り込み（まとめた名前でも引ける）
       (byClient[c]=byClient[c]||[]).push({p,idx});
     });
     _mgmtClientNames = Object.keys(byClient).sort((a,b)=>a.localeCompare(b,'ja'));
@@ -1048,9 +1192,16 @@
         <div class="mg-row">
           <span class="mg-pname">${esc(o.p)}</span>
           <span class="mg-fbadge${f==='1'?' q':''}">${f==='1'?'月1回':'月2回'}</span>
-          <button onclick="editMapping(${o.idx})" title="取引先・頻度を変更">✎</button>
+          <button onclick="editMapping(${o.idx})" title="物件名・取引先・頻度を変更">✎</button>
           <button class="rm" onclick="delMapping(${o.idx})" title="削除">×</button>
+        </div>`+(aliasOf[o.p]||[]).map(k=>{
+          const ai = _mgmtAliasKeys.push(k)-1;
+          return `
+        <div class="mg-alias">
+          <span class="mg-aname">↳ ${esc(aliasLabel(k))}（まとめた名前）</span>
+          <button onclick="splitAlias(_mgmtAliasKeys[${ai}])" title="別の物件として登録し直す">切り離す</button>
         </div>`;
+        }).join('');
       }).join('');
       const st = clientStyle[c] || '';
       const styleSel = `<select class="mg-style" onclick="event.stopPropagation()" onchange="setClientStyle(_mgmtClientNames[${ci}], this.value)" title="この取引先のまとめ方">`+
@@ -1073,9 +1224,34 @@
     const prop = _mgmtEntries[idx][0];
     const res = await resolveNewProperty(prop, 'edit', { client:propMap[prop], freq:lookupFreq(prop) });
     if(res.skip) return;                                  // キャンセル
-    propMap[prop] = res.client; freqMap[prop] = res.freq; saveMap(); saveFreq();
-    items.forEach(it=>{ if(it.prop===prop) it.client=res.client; });   // 取込済みにも反映
+    const name = res.name || prop;
+    if(name!==prop) renameProp(prop, name);
+    propMap[name] = res.client; freqMap[name] = res.freq; saveMap(); saveFreq();
+    items.forEach(it=>{ if(it.prop===name) it.client=res.client; });   // 取込済みにも反映
     renderAll();
+    if(name!==prop) setStatus('ok','✅ 「'+prop+'」を「'+name+'」に直しました。現場のスマホの物件一覧も配り直してください。');
+  }
+  /* 物件名を直すとき、ほかの物件と見分けがつかなくなる名前にはさせない（勝手にまとまってしまうため） */
+  function nameClash(old, nw){
+    if(nw===old) return null;
+    const k=normKey(nw);
+    const hit=Object.keys(propMap).find(p=>p!==old && (p===nw || normKey(p)===k));
+    if(hit) return hit;
+    if(aliasMap[k] && aliasMap[k]!==old && hasProp(aliasMap[k])) return aliasMap[k];
+    return null;
+  }
+  /* 物件名を付け替える。古い名前は別名として残す＝現場のスマホが古い名前のまま報告書を作っても、この物件に入る */
+  function renameProp(old, nw){
+    propMap[nw]=propMap[old]; delete propMap[old];
+    if(freqMap[old]!==undefined) freqMap[nw]=freqMap[old];
+    delete freqMap[old];
+    Object.keys(aliasMap).forEach(a=>{ if(aliasMap[a]===old) aliasMap[a]=nw; });
+    const kn=normKey(nw);
+    delete aliasMap[kn]; delete aliasName[kn];            // 新しい名前そのものは別名にしない
+    addAlias(old, nw);
+    saveAlias(); saveMap(); saveFreq();
+    items.forEach(it=>{ if(it.prop===old) it.prop=nw; });
+    undoList.forEach(r=>{ if(r.into===old) r.into=nw; });
   }
   function delMapping(idx){
     const prop = _mgmtEntries[idx][0];
