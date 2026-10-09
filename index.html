@@ -52,13 +52,29 @@
     text-align:left; display:block; }
   textarea{ min-height:90px; resize:vertical; }
 
-  .checks{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .chk{ display:flex; align-items:center; gap:8px; padding:10px; border:1.5px solid var(--line);
+  .checks{ position:relative; display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .chk{ position:relative; display:flex; align-items:center; gap:6px; padding:10px 8px 10px 0; border:1.5px solid var(--line);
     border-radius:10px; font-size:14px; background:#fafbfd; }
   .chk.on{ border-color:var(--orange); background:#fff6ee; color:var(--orange2); font-weight:700; }
-  .chk input[type=checkbox]{ width:18px; height:18px; accent-color:var(--orange); flex:none; }
-  .chk .chk-name{ flex:1; cursor:pointer; }
-  .chk .chk-del{ border:none; background:none; color:var(--muted); font-size:18px; line-height:1; cursor:pointer; padding:0 2px; flex:none; }
+  /* 並べ替えのつまみ。ここを押さえた時だけ動かせる（他の場所は今まで通りスクロール・タップ）。
+     右端の×の隣に置くと、つまむつもりで項目を消してしまうので左端に置く */
+  .chk .chk-grip{ flex:none; align-self:stretch; width:26px; margin:-10px -6px -10px 0; display:flex;
+    align-items:center; justify-content:center; color:#a3acb9; cursor:grab; touch-action:none;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  .chk .chk-grip svg{ width:14px; height:14px; display:block; }
+  .chk.on .chk-grip{ color:#e8a77a; }
+  /* チェック欄。押した順の番号（＝報告書に並ぶ順）をそのまま印にする */
+  .chk .chk-box{ position:relative; flex:none; width:22px; height:22px; }
+  .chk .chk-box input{ position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; }
+  .chk .chk-no{ display:flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:6px;
+    border:1.5px solid #b8c0cc; background:#fff; color:#fff; font-size:13px; font-weight:800; line-height:1; pointer-events:none; }
+  .chk.on .chk-no{ background:var(--orange); border-color:var(--orange); }
+  /* つまんで動かしている間 */
+  .chk.dragging{ z-index:5; box-shadow:0 10px 24px rgba(20,35,70,.22); cursor:grabbing; }
+  body.sorting, body.sorting *{ -webkit-user-select:none; user-select:none; cursor:grabbing; }
+  /* 名前は空白の所で折り返す（「階段 清／掃」のように語の途中で切らない）。長い語だけは途中で折る */
+  .chk .chk-name{ flex:1; min-width:0; cursor:pointer; word-break:keep-all; overflow-wrap:anywhere; }
+  .chk .chk-del{ border:none; background:none; color:var(--muted); font-size:18px; line-height:1; cursor:pointer; padding:0 1px; flex:none; }
   .chk .chk-del:hover{ color:var(--orange2); }
   .add-work{ display:flex; gap:8px; margin-top:10px; }
   .add-work input{ flex:1; }
@@ -451,29 +467,114 @@
   const MAX_PHOTOS = 8;
   let _pdfBlob=null, _pdfName='';   // 作成したPDFを保持し、共有ボタンの押下時に使う
   // 作業内容は初期は空。使用者が追加した項目を端末(localStorage)に保存し、削除するまで次回も表示する
-  function loadWorks(){ try{ return (JSON.parse(localStorage.getItem('workItems')||'[]')).map(n=>({name:n,checked:false})); }catch(e){ return []; } }
+  // 並び（＝リストの順）はつまみで並べ替えられ、そのまま次回も残る。
+  // 報告書に載る順は「押した順」（ord＝押した時の通し番号。外すと0）。いつもの順に並べておけば上から押すだけで揃う
+  function loadWorks(){ try{ return (JSON.parse(localStorage.getItem('workItems')||'[]')).map(n=>({name:n,checked:false,ord:0})); }catch(e){ return []; } }
   function storeWorks(){ try{ localStorage.setItem('workItems', JSON.stringify(works.map(w=>w.name))); }catch(e){} }
   let works = loadWorks();
+  let workSeq = 0;
+  const checkedWorks = ()=> works.filter(w=>w.checked).sort((a,b)=>a.ord-b.ord);   // 報告書に載る順
   let photos = [];        // 報告書に使う画像（長辺1100px）
   let photoThumbs = [];   // 入力画面のサムネ用（長辺320px）。展開後のメモリが約1/12になる
 
   /* 作業内容（定番タップ） */
+  const GRIP_SVG='<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 3.5h10M2 7h10M2 10.5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
   function renderChecks(){
     const box = document.getElementById('checkList'); box.innerHTML='';
+    const rank=new Map(checkedWorks().map((w,k)=>[w,k+1]));
     works.forEach((w,i)=>{
       const div=document.createElement('div');
       div.className='chk'+(w.checked?' on':'');
-      div.innerHTML=`<input type="checkbox" ${w.checked?'checked':''} onchange="toggleWork(${i},this.checked)">
-        <span class="chk-name" onclick="this.previousElementSibling.click()">${esc(w.name)}</span>
+      div.dataset.i=i;
+      div.innerHTML=`<span class="chk-grip" title="つまんで並べ替え" onpointerdown="gripDown(event)">${GRIP_SVG}</span>
+        <label class="chk-box"><input type="checkbox" ${w.checked?'checked':''} onchange="toggleWork(${i},this.checked)"><span class="chk-no">${rank.get(w)||''}</span></label>
+        <span class="chk-name" onclick="toggleWork(${i},!works[${i}].checked)">${esc(w.name)}</span>
         <button class="chk-del" title="削除" onclick="delWork(${i})">×</button>`;
       box.appendChild(div);
     });
   }
-  function toggleWork(i,c){ works[i].checked=c; renderChecks(); render(); saveDraft(); }
-  function delWork(i){ works.splice(i,1); storeWorks(); renderChecks(); render(); }
+  function toggleWork(i,c){ works[i].checked=c; works[i].ord=c?++workSeq:0; renderChecks(); render(); saveDraft(); }
+  function delWork(i){ works.splice(i,1); storeWorks(); renderChecks(); render(); saveDraft(); }
   function addWork(){
     const inp=document.getElementById('newWork'); const name=inp.value.trim(); if(!name)return;
-    works.push({name,checked:true}); storeWorks(); inp.value=''; renderChecks(); render();
+    works.push({name,checked:true,ord:++workSeq}); storeWorks(); inp.value=''; renderChecks(); render(); saveDraft();
+  }
+
+  /* ===== 作業内容の並べ替え（つまみ ≡ を押さえて動かす） =====
+     2列の格子なので、指の下にある枠の位置へ入れ替える。つまんだ枠そのものはDOMの中で動かさず
+     （動かすと指の追跡が切れる端末がある）、まわりの枠を前後に入れ替えて、滑らかに寄せる。
+     画面の上下の端まで持っていくと自動でスクロールする。離した時点の並びを端末に保存する。 */
+  let _drag=null;
+  function gripDown(e){
+    if(_drag || (e.pointerType==='mouse' && e.button!==0)) return;
+    e.preventDefault();
+    const el=e.currentTarget.closest('.chk'), box=el.parentElement, r=el.getBoundingClientRect();
+    _drag={ el, box, id:e.pointerId, cx:e.clientX, cy:e.clientY, offX:e.clientX-r.left, offY:e.clientY-r.top, raf:0 };
+    el.classList.add('dragging'); document.body.classList.add('sorting');
+    if(navigator.vibrate) try{ navigator.vibrate(8); }catch(_){}
+    window.addEventListener('pointermove', gripMove, {passive:false});
+    window.addEventListener('pointerup', gripUp);
+    window.addEventListener('pointercancel', gripUp);
+    dragUpdate();
+    _drag.raf=requestAnimationFrame(dragEdgeScroll);
+  }
+  function gripMove(e){
+    if(!_drag || e.pointerId!==_drag.id) return;
+    e.preventDefault();
+    _drag.cx=e.clientX; _drag.cy=e.clientY;
+    dragUpdate();
+  }
+  function dragUpdate(){
+    const {el, box}=_drag, br=box.getBoundingClientRect();
+    const px=_drag.cx-br.left, py=_drag.cy-br.top;
+    // 指の下にある枠（見た目ではなく本来の位置で判定し、動いている途中の枠に惑わされない）
+    const cells=[...box.children];
+    const over=cells.find(c=> c!==el && px>=c.offsetLeft && px<=c.offsetLeft+c.offsetWidth
+                                     && py>=c.offsetTop  && py<=c.offsetTop+c.offsetHeight);
+    if(over){
+      const from=cells.indexOf(el), to=cells.indexOf(over);
+      const others=cells.filter(c=>c!==el), before=others.map(c=>c.getBoundingClientRect());
+      if(to>from){ for(let k=from+1;k<=to;k++) box.insertBefore(cells[k], el); }
+      else       { const ref=el.nextSibling; for(let k=to;k<from;k++) box.insertBefore(cells[k], ref); }
+      others.forEach((c,k)=>{                       // 入れ替わった枠を元の位置から滑らせる
+        const dx=before[k].left-(br.left+c.offsetLeft), dy=before[k].top-(br.top+c.offsetTop);
+        if(!dx && !dy) return;
+        c.style.transition='none'; c.style.transform=`translate(${dx}px,${dy}px)`;
+        c.getBoundingClientRect();
+        c.style.transition='transform .18s ease'; c.style.transform='';
+      });
+    }
+    el.style.transform=`translate(${px-_drag.offX-el.offsetLeft}px,${py-_drag.offY-el.offsetTop}px) scale(1.03)`;
+  }
+  function dragEdgeScroll(){
+    if(!_drag) return;
+    const bar=document.querySelector('.toggle-bar');
+    const top=(bar?bar.getBoundingClientRect().bottom:0)+40, bottom=window.innerHeight-50, y=_drag.cy;
+    const v= y<top ? -Math.min(16,(top-y)/3+2) : y>bottom ? Math.min(16,(y-bottom)/3+2) : 0;
+    if(v){ const s=window.scrollY; window.scrollBy(0,v); if(window.scrollY!==s) dragUpdate(); }
+    _drag.raf=requestAnimationFrame(dragEdgeScroll);
+  }
+  function gripUp(e){
+    if(!_drag || e.pointerId!==_drag.id) return;
+    const {el, box}=_drag;
+    cancelAnimationFrame(_drag.raf);
+    window.removeEventListener('pointermove', gripMove);
+    window.removeEventListener('pointerup', gripUp);
+    window.removeEventListener('pointercancel', gripUp);
+    document.body.classList.remove('sorting');
+    const from=el.getBoundingClientRect();
+    const order=[...box.children].map(c=>+c.dataset.i);
+    const moved=order.some((v,k)=>v!==k);
+    const pos=order.indexOf(+el.dataset.i);
+    _drag=null;
+    if(moved){ works=order.map(i=>works[i]); storeWorks(); }
+    renderChecks();
+    // 離した所から、収まる枠へすっと戻す
+    const land=box.children[pos]; if(!land) return;
+    const to=land.getBoundingClientRect();
+    land.style.transition='none'; land.style.transform=`translate(${from.left-to.left}px,${from.top-to.top}px)`;
+    land.getBoundingClientRect();
+    land.style.transition='transform .16s ease'; land.style.transform='';
   }
 
   /* ===== 写真の取り込み（2026-08-21 全面見直し。Galaxy A25 5Gの現場報告が発端） =====
@@ -1208,7 +1309,7 @@
     photos=[]; photoThumbs=[];
     photoMsg('');
     clearDraft(true);            // 1件終わったので控えは破棄
-    works.forEach(w=>w.checked=false);   // 作業内容は項目リストは残し、チェックだけ外す
+    works.forEach(w=>{ w.checked=false; w.ord=0; });   // 作業内容は項目リスト（並びも）は残し、チェックと番号だけ外す
     renderChecks();
     renderThumbs();
     _pdfBlob=null;
@@ -1245,7 +1346,7 @@
 
     // 作業内容・特記事項：チェック項目（済み）＋自由記入の各行。最低5行の罫線を用意
     const lines=[];
-    works.filter(w=>w.checked).forEach(w=> lines.push({t:'chk', text:w.name}));
+    checkedWorks().forEach(w=> lines.push({t:'chk', text:w.name}));   // 押した順
     val('f_notes').split('\n').map(s=>s.trim()).filter(s=>s).forEach(s=> lines.push({t:'free', text:s}));
     while(lines.length < 5) lines.push({t:'blank', text:''});
     const box=document.getElementById('pv_report');
@@ -1267,7 +1368,7 @@
   let _draftTimer=null;
   function draftData(){
     return { place:val('f_place'), date:val('f_date'), worker:val('f_worker'), notes:val('f_notes'),
-             checked:works.filter(w=>w.checked).map(w=>w.name), dateTouched:_dateTouched, t:Date.now() };
+             checked:checkedWorks().map(w=>w.name), dateTouched:_dateTouched, t:Date.now() };   // 押した順のまま控える
   }
   function saveDraft(){
     const d=draftData();
@@ -1290,7 +1391,7 @@
     if(d.date && d.dateTouched){ document.getElementById('f_date').value=d.date; _dateTouched=true; }
     if(d.worker)document.getElementById('f_worker').value=d.worker;
     if(d.notes) document.getElementById('f_notes').value=d.notes;
-    if(d.checked&&d.checked.length) works.forEach(w=>{ if(d.checked.includes(w.name)) w.checked=true; });
+    if(d.checked&&d.checked.length) d.checked.forEach(n=>{ const w=works.find(w=>w.name===n&&!w.checked); if(w){ w.checked=true; w.ord=++workSeq; } });
     const mm=Math.round((Date.now()-(d.t||Date.now()))/60000);
     document.getElementById('draftNoteText').textContent =
       '前回の入力を復元しました（'+(mm<1?'たった今':mm+'分前')+'の内容）。写真は復元できないので選び直してください。';
