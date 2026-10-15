@@ -1582,6 +1582,7 @@
       mm--; if(mm<1){ mm=12; yy--; }
     }
     sel.innerHTML=opts.join(''); sel.value=drvYM;
+    document.getElementById('drvSetup').textContent=`📁 ドライブの「${DRIVE_ROOT}」フォルダを選ぶ`;   // 検証用は「清掃報告書_検証用」
     if(canPickDir) idbGet(SRC_KEY).then(h=>{ srcDirHandle=h||null; renderDrive(); });
     renderDrive();
   }
