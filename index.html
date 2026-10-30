@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="format-detection" content="telephone=no">
+<!-- 安全対策（2026-10-30）：このページが読み込める・通信できる先を、自分のサイトと会社のドライブの受け取り口（Apps Script）だけに絞る。
+     万一おかしなものが紛れ込んでも、よその場所から命令を読み込んだり、報告書や写真をよそへ送ったりできないようにするため。
+     受け取り口の返事は script.googleusercontent.com から届くので、そこも許可する。写真は端末の中で data: / blob: として扱う。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+<meta name="referrer" content="same-origin">
 <title>清掃報告書｜マスト管理 有限会社</title>
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
@@ -271,6 +276,12 @@
   .done-note{ margin:12px 0 0; font-size:12px; color:var(--muted); line-height:1.6; }
   .done-way{ margin:12px 0 0; padding:11px 13px; border-radius:10px; font-size:13px; line-height:1.6;
     text-align:left; background:#fdeee2; color:#b3500a; border:1px solid #f7c9a3; }
+  /* 会社のドライブへの控えの状態（送れた／送っている／端末で預かり中） */
+  .done-drive{ display:none; margin:10px 0 0; font-size:12.5px; font-weight:700; line-height:1.5; }
+  .done-drive.show{ display:block; }
+  .done-drive.ok{ color:#137a43; }
+  .done-drive.busy{ color:var(--muted); }
+  .done-drive.wait{ color:#b3500a; }
   /* 押す前に「共有シートが出るのか／保存になるのか」を知らせる一行 */
   .share-way{ font-weight:700; }
   .share-way.ok{ color:#137a43; }
@@ -455,6 +466,7 @@
     <p class="done-title" id="doneTitle">送信しました</p>
     <p class="done-place" id="donePlace"></p>
     <p class="done-date" id="doneDate"></p>
+    <p class="done-drive" id="doneDrive"></p>
     <p class="done-way" id="doneWay" style="display:none;"></p>
     <div id="sentList"></div>
     <button class="btn-next-big" onclick="newReport()">🆕 次の報告書へ</button>
@@ -1252,7 +1264,85 @@
         setTimeout(()=>URL.revokeObjectURL(url),10000);
       }
       showDone();      // 送信までいけたら完了パネルへ切り替える（キャンセル時はここに来ない）
+      queueDrive(_pdfBlob, _pdfName, (val('f_date')||'').replace(/-/g,''));   // 同じPDFを会社のドライブへも
     }catch(e){ /* ユーザーが共有をキャンセルした場合などは何もしない */ }
+  }
+
+  /* ===== 会社のGoogleドライブへの控え（2026-10 追加） =====
+     LINEへ送れたら、同じPDFを会社のGoogleドライブにも送る（スタッフの操作は増やさない）。
+     PDFを作った時ではなく送れた時にするのは、物件名を打ち直して作り直した途中の版を会社へ残さないため。
+     受け取り口は会社用Gmailの Apps Script（清掃報告書/ドライブ受け取り_GAS/）。清掃日の月ごとのフォルダに入り、
+     同じ物件・同じ日の報告書は上書きされる（もう一度送る・作り直しても1つだけ残る）。
+     電波が無い／途中でアプリを閉じた時は端末（IndexedDB）に預けておき、開いた時・電波が戻った時に送り直す。
+     DRIVE_URL が空のあいだは何もしない。 */
+  const DRIVE_URL = 'https://script.google.com/macros/s/AKfycbzH7vErm8F03s13nraFCnw-nQi3CNGu-4tLaN1XP5ffz3fPi2akLapWKtQmm9GEeqehBQ/exec';
+  const DRIVE_KEY = 'bHPfxkZiZxzHKMnKqoKGGMEp';            // 受け取り口と同じ合言葉
+  const DRIVE_TEST = /\/preview\//.test(location.pathname) || location.hostname==='localhost';   // 検証用は別フォルダへ
+  const UPQ_DB = 'must-upq'+(DRIVE_TEST?'-pv':'');
+  function upTx(mode, fn){
+    return new Promise((res,rej)=>{
+      const rq=indexedDB.open(UPQ_DB,1);
+      rq.onupgradeneeded=()=>rq.result.createObjectStore('q',{keyPath:'name'});
+      rq.onerror=()=>rej(rq.error);
+      rq.onsuccess=()=>{
+        const tx=rq.result.transaction('q',mode); const r=fn(tx.objectStore('q'));
+        tx.oncomplete=()=>res(r && r.result); tx.onerror=()=>rej(tx.error);
+      };
+    });
+  }
+  function blobToB64(b){
+    return new Promise((res,rej)=>{ const r=new FileReader();
+      r.onload=()=>res(String(r.result).split(',')[1]); r.onerror=()=>rej(r.error); r.readAsDataURL(b); });
+  }
+  function driveState(kind, n){
+    const el=document.getElementById('doneDrive'); if(!el) return;
+    el.className='done-drive show '+kind;
+    el.textContent = kind==='ok'   ? '☁ 会社のドライブにも保存しました'
+                   : kind==='busy' ? '☁ 会社のドライブへ送っています…'
+                   : '☁ 会社のドライブへは未送信 '+n+'件（電波が戻ると自動で送ります）';
+  }
+  async function queueDrive(blob, name, date){
+    if(!DRIVE_URL || !blob) return;
+    driveState('busy');
+    let pdf; try{ pdf=await blobToB64(blob); }catch(e){ driveState('wait',1); return; }
+    try{ await upTx('readwrite', st=>st.put({ name, date, pdf, t:Date.now() })); }
+    catch(e){   // 預けられない端末（プライベートブラウズ等）でも、いま送れるならそのまま送る
+      driveState((await sendDrive({ name, date, pdf })) ? 'ok' : 'wait', 1);
+      return;
+    }
+    flushDrive();
+  }
+  async function sendDrive(rec){
+    try{
+      // 本文を文字列で送ると「単純なリクエスト」になり、Apps Script でも事前確認なしで受け取れる
+      const r=await fetch(DRIVE_URL,{ method:'POST', body:JSON.stringify({ k:DRIVE_KEY, name:rec.name, date:rec.date, test:DRIVE_TEST, pdf:rec.pdf }) });
+      const j=await r.json();
+      return !!(j && j.ok);
+    }catch(e){ return false; }
+  }
+  let _flushing=false;
+  async function flushDrive(){
+    if(!DRIVE_URL || _flushing) return;
+    _flushing=true;
+    try{
+      for(let round=0; round<3; round++){              // 送っている間に増えた・送り直された分も続けて送る
+        const keys=await upTx('readonly', st=>st.getAllKeys());   // 中身は1件ずつ読む（何件も溜まった時に一度に抱えない）
+        if(!keys.length) break;
+        let left=0;
+        for(const key of keys){
+          const rec=await upTx('readonly', st=>st.get(key)); if(!rec) continue;
+          driveState('busy');
+          if(await sendDrive(rec)){
+            // 送っている間に同じ報告書が送り直されていたら、新しい方は消さずに次の回で送る
+            await upTx('readwrite', st=>{ const g=st.get(rec.name); g.onsuccess=()=>{ if(g.result && g.result.t===rec.t) st.delete(rec.name); }; });
+          }else left++;
+        }
+        const now=await upTx('readonly', st=>st.count());
+        driveState(now?'wait':'ok', now);
+        if(left) break;                                // 送れなかった＝電波が無い等。次のきっかけを待つ
+      }
+    }catch(e){}
+    _flushing=false;
   }
 
   /* ===== 送信のあとの画面 =====
@@ -1399,7 +1489,8 @@
   }
 
   function val(id){ const e=document.getElementById(id); return e?e.value:''; }
-  function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  // 画面に出す文字の無害化。引用符も変換し、文字が画面の部品の中に入り込めないようにする（2026-10-30）
+  function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
   /* ===== 清掃日は「日本時間の今日」を入れ直す =====
      これまでの不具合（2026-08-31 修正）：
@@ -1458,6 +1549,8 @@
     el.classList.toggle('show', !navigator.onLine);
   }
   window.addEventListener('online', syncOnline);
+  window.addEventListener('online', ()=>flushDrive());
+  setTimeout(()=>flushDrive(), 1500);                 // 前回送れずに預かっている分があれば送る
   window.addEventListener('offline', syncOnline);
   syncOnline();
 
@@ -1467,7 +1560,7 @@
   document.getElementById('inputView').addEventListener('input', saveDraftSoon);
   document.addEventListener('visibilitychange', ()=>{
     if(document.hidden){ saveDraft(); }              // 写真を選びに離れる直前に確実に控える
-    else { refreshDate(); render(); }                // 戻ってきた時に清掃日を取り直す（日をまたいでも古い日付が残らない）
+    else { refreshDate(); render(); flushDrive(); }  // 戻ってきた時に清掃日を取り直す（日をまたいでも古い日付が残らない）・預かり分を送る
   });
 </script>
 </body>

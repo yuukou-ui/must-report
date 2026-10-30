@@ -11,8 +11,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="報告書PDF結合">
-<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js"></script>
+<!-- 安全対策（2026-10-30）：このページが読み込める・通信できる先を、自分のサイトと会社のドライブの受け取り口（Apps Script）だけに絞る。
+     万一おかしなPDFや部品が混ざっても、よその場所から命令を読み込んだり、報告書の中身をよそへ送ったりできないようにするため。
+     受け取り口の返事は script.googleusercontent.com から届くので、そこも許可する。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+<meta name="referrer" content="same-origin">
+<!-- PDFの部品は外部のCDNではなく、このサイトの lib/ に置いたものを使う（2026-10-30）。
+     CDNが乗っ取られたり書き換えられたりしても影響を受けず、版も勝手に変わらない。
+     PDF.js（圧縮で描き直す部品）は使う時にだけ読み込む（loadPdfjs）。 -->
+<script src="../../lib/pdf-lib-1.17.1.min.js" data-lib="pdf-lib"></script>
 <style>
   :root{
     --navy:#14315e; --navy2:#1f4a8a; --orange:#ff7a18; --orange2:#e85d00;
@@ -449,8 +456,21 @@
   let mgmtQuery = '';        // 登録一覧の検索文字
   let collapsedClients = {}; // 取引先名→true で折りたたみ
   let quality = 'std';       // 'hi'=無劣化そのまま / 'std'=標準圧縮 / 'lite'=軽量圧縮
-  // 圧縮時は pdf.js で各ページを目標DPIに描き直す（ワーカーを指定）
-  if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.worker.min.js';
+  /* 圧縮時は pdf.js で各ページを目標DPIに描き直す。
+     2026-10-30 に 3.11.174 → 6.4.299 へ上げた。3.11.174 には「細工したPDFを開くとページ内で勝手に命令が動く」弱点
+     （CVE-2024-4367）があり、ドライブの受け取り口から届いたPDFをこのPCで描き直す流れになったため。
+     部品はこのサイトの lib/ に置いたもの。圧縮を選んだ時にだけ読み込むので、ふだんの起動は重くならない。 */
+  const LIB_DIR = new URL('.', document.querySelector('script[data-lib="pdf-lib"]').src).href;   // …/lib/（本番・検証用どちらでも合う）
+  const PDFJS_DIR = LIB_DIR + 'pdfjs-6.4.299/';
+  let _pdfjs = null;
+  async function loadPdfjs(){
+    if(!_pdfjs){
+      const m = await import(PDFJS_DIR + 'pdf.min.js');
+      m.GlobalWorkerOptions.workerSrc = PDFJS_DIR + 'pdf.worker.min.js';
+      _pdfjs = m;
+    }
+    return _pdfjs;
+  }
   const QCFG = { std:{ dpi:200, jpeg:0.85 }, mid:{ dpi:170, jpeg:0.85 }, lite:{ dpi:130, jpeg:0.78 } };   // 高画質(hi)は再圧縮なし
 
   /* ===== 物件名→取引先 の対応表（端末に記憶・1回目だけ手入力すれば次回から自動） ===== */
@@ -658,6 +678,14 @@
     return { ...fromName(name), created };
   }
   function fmtDate(d){ return d ? `${+d.slice(4,6)}/${+d.slice(6,8)}` : '日付不明'; }
+  // PDFは先頭（決まりでは1024バイト以内）に「%PDF-」がある
+  function looksLikePdf(buf){
+    const a = new Uint8Array(buf, 0, Math.min(1024, buf.byteLength));
+    for(let i=0; i+4<a.length; i++){
+      if(a[i]===0x25 && a[i+1]===0x50 && a[i+2]===0x44 && a[i+3]===0x46 && a[i+4]===0x2D) return true;
+    }
+    return false;
+  }
 
   const drop = document.getElementById('drop');
   document.getElementById('pdfInput').addEventListener('change', e=>{ addFiles(e.target.files); e.target.value=''; });
@@ -685,6 +713,8 @@
       if(opts.progress) opts.progress(fi+1, files.length);
       let bytes;
       try{ bytes = await f.arrayBuffer(); }catch(e){ bad.push(f.name); continue; }
+      // 名前が .pdf でも中身がPDFでないもの（壊れたファイル・別の種類のファイル）は取り込まない（2026-10-30 安全対策）
+      if(!looksLikePdf(bytes)){ bad.push(f.name+'（PDFではありません）'); continue; }
       const meta = await readMeta(bytes, f.name);
       metas.push({ name:f.name, bytes, ...meta, raw:meta.prop });   // raw＝PDFに書かれていた物件名（切り離すときに使う）
     }
@@ -1563,8 +1593,8 @@
   const DRIVE_URL = 'https://script.google.com/macros/s/AKfycbzH7vErm8F03s13nraFCnw-nQi3CNGu-4tLaN1XP5ffz3fPi2akLapWKtQmm9GEeqehBQ/exec';
   const DRIVE_KEY = 'bHPfxkZiZxzHKMnKqoKGGMEp';
   const DRIVE_TEST = /\/preview\//.test(location.pathname) || location.hostname==='localhost';
-  // 受け取り口（会社用Gmail）の設置が済むまでは、検証用ページと手元の確認でだけ出す。設置後に true にする
-  const DRIVE_ON = /\/preview\//.test(location.pathname) || location.hostname==='localhost';
+  // 受け取り口（会社用Gmail）は 10/19 に会社PCでの通し確認が済んだので、2026-10-30 に本番でも出すようにした
+  const DRIVE_ON = true;
   const SRC_KEY = 'srcDir';
   let srcDirHandle = null;
   let drvYM = '', drvHalf = 'h2';
@@ -1583,7 +1613,13 @@
     }
     sel.innerHTML=opts.join(''); sel.value=drvYM;
     document.getElementById('drvSetup').textContent=`📁 ドライブの「${DRIVE_ROOT}」フォルダを選ぶ`;   // 検証用は「清掃報告書_検証用」
-    if(canPickDir) idbGet(SRC_KEY).then(h=>{ srcDirHandle=h||null; renderDrive(); });
+    if(canPickDir) idbGet(SRC_KEY).then(h=>{
+      srcDirHandle=h||null;
+      if(isMonthDir(srcDirHandle) && [...sel.options].some(o=>o.value===String(monthNum(srcDirHandle.name)))){   // 月のフォルダを選んである時はその月に合わせる
+        drvYM=String(monthNum(srcDirHandle.name)); sel.value=drvYM;
+      }
+      renderDrive();
+    });
     renderDrive();
   }
   function setDrvHalf(h){ drvHalf=h; renderDrive(); }
@@ -1596,7 +1632,9 @@
     document.getElementById('drvSetup').style.display = srcDirHandle ? 'none' : '';
     document.getElementById('drvMain').style.display  = srcDirHandle ? '' : 'none';
     if(!srcDirHandle) return;
-    document.getElementById('drvDir').textContent='📁 '+srcDirHandle.name;
+    const oneMonth = isMonthDir(srcDirHandle);
+    document.getElementById('drvDir').textContent='📁 '+srcDirHandle.name+(oneMonth?`（この月だけ読めます。ほかの月も読むには「${DRIVE_ROOT}」を選んでください）`:'');
+    document.getElementById('drvDir').parentElement.classList.toggle('warn', oneMonth);
     const kp=document.getElementById('drvKeep');
     kp.classList.toggle('warn', !outDirHandle);
     document.getElementById('drvKeepVal').textContent = outDirHandle
@@ -1617,15 +1655,40 @@
   // 月フォルダの名前「2026年9月」⇄ 202609。以前の「2026-09」も読める
   const monthDirName = ym => `${+ym.slice(0,4)}年${+ym.slice(4)}月`;
   function monthNum(name){ const r=/^(\d{4})年(\d{1,2})月$/.exec(name) || /^(\d{4})-(\d{2})$/.exec(name); return r ? (+r[1])*100+(+r[2]) : 0; }
+  /* フォルダ選び（2026-10-30 見直し）
+     正しいのは月フォルダが並んでいる「清掃報告書」だが、10/19 に月のフォルダ（2026年10月）そのものを選んで
+     「見つからない」になったので、どこを選んでも読めるようにする。
+     ・月のフォルダを選んだ → その月はそのまま読める（ほかの月を読む時だけ、選び直しを案内する）
+     ・Googleドライブ全体（G:）や「マイドライブ」を選んだ → 中の「清掃報告書」まで自動で降りる */
+  const isMonthDir = h => !!(h && monthNum(h.name));
+  async function findRoot(h){
+    if((await monthDirs(h)).length) return h;
+    const tryDir = async (d, name)=>{ try{ return await d.getDirectoryHandle(name); }catch(e){ return null; } };
+    let r = await tryDir(h, DRIVE_ROOT);               // 「マイドライブ」を選んだ
+    if(r) return r;
+    for(const my of ['マイドライブ','My Drive']){      // Googleドライブ全体（G:）を選んだ
+      const m = await tryDir(h, my);
+      if(m && (r = await tryDir(m, DRIVE_ROOT))) return r;
+    }
+    return h;
+  }
   async function pickSrcDir(){
     let h;
     try{ h=await window.showDirectoryPicker({ id:'must-matome-src', mode:'read' }); }
     catch(e){ return; }                                // キャンセル
-    if(!(await monthDirs(h)).length){                  // 「マイドライブ」ごと選んだ時は、中の「清掃報告書」に入る
-      try{ h=await h.getDirectoryHandle(DRIVE_ROOT); }catch(e){}
+    if(!isMonthDir(h)) h = await findRoot(h);
+    srcDirHandle=h; await idbPut(SRC_KEY,h);
+    if(isMonthDir(h)){                                 // 月のフォルダを選んだ時は、その月を読む設定にしておく
+      drvYM = String(monthNum(h.name));
+      const sel=document.getElementById('drvMonth');
+      if(![...sel.options].some(o=>o.value===drvYM)) sel.add(new Option(`${+drvYM.slice(0,4)}年${+drvYM.slice(4)}月`, drvYM));
+      sel.value = drvYM;
+      renderDrive();
+      setStatus('ok',`✅ 「${h.name}」の報告書を読めるようにしました。\n来月以降も続けて使うときは、「フォルダを変える」で1つ上の「${DRIVE_ROOT}」フォルダを選んでおくと、毎月選び直さずに済みます。`);
+      return;
     }
+    renderDrive();
     const months=await monthDirs(h);
-    srcDirHandle=h; await idbPut(SRC_KEY,h); renderDrive();
     if(months.length) setStatus('ok',`✅ 「${h.name}」を読み込み元にしました（${months.length}か月分のフォルダがあります）。`);
     else setStatus('ng',`「${h.name}」には月ごとのフォルダ（例：${monthDirName(thisYM())}）がまだありません。Googleドライブの中の「${DRIVE_ROOT}」フォルダを選んでください。`);
   }
@@ -1641,8 +1704,13 @@
     }
     const ym=drvYM, half=drvHalf, client=document.getElementById('drvClient').value, mon=+ym.slice(4);
     let dirName=monthDirName(ym), dir;
-    try{ dir=await srcDirHandle.getDirectoryHandle(dirName); }
-    catch(e){ try{ dirName=ym.slice(0,4)+'-'+ym.slice(4); dir=await srcDirHandle.getDirectoryHandle(dirName); }catch(_){ dirName=monthDirName(ym); } }
+    if(isMonthDir(srcDirHandle)){                      // 月のフォルダそのものを選んである
+      if(String(monthNum(srcDirHandle.name))===ym){ dir=srcDirHandle; dirName=srcDirHandle.name; }
+      else { setStatus('ng',`今は「${srcDirHandle.name}」のフォルダを選んでいるので、${mon}月の報告書は読めません。\n「フォルダを変える」で1つ上の「${DRIVE_ROOT}」フォルダを選んでください（次からはどの月も読めます）。`); return; }
+    }else{
+      try{ dir=await srcDirHandle.getDirectoryHandle(dirName); }
+      catch(e){ try{ dirName=ym.slice(0,4)+'-'+ym.slice(4); dir=await srcDirHandle.getDirectoryHandle(dirName); }catch(_){ dirName=monthDirName(ym); } }
+    }
     if(!dir){ setStatus('ng',`${mon}月の報告書はまだドライブにありません（「${dirName}」のフォルダがありません）。`); return; }
     btn.disabled=true;
     setStatus('busy','ドライブの報告書を探しています…');
@@ -1814,6 +1882,7 @@
   async function buildCompressed(cfg, list){
     const out = await PDFLib.PDFDocument.create();
     const A4W=595.28, A4H=841.89;
+    const pdfjsLib = await loadPdfjs();
     for(const it of list){
       const doc = await pdfjsLib.getDocument({ data: it.bytes.slice(0) }).promise;  // sliceで原本ArrayBufferを守る
       try{
@@ -1823,9 +1892,8 @@
           const canvas = document.createElement('canvas');
           canvas.width  = Math.max(1, Math.round(vp.width));
           canvas.height = Math.max(1, Math.round(vp.height));
-          const ctx = canvas.getContext('2d');
-          ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);   // 透過対策で白背景
-          await page.render({ canvasContext:ctx, viewport:vp }).promise;
+          // 6系からは canvas をそのまま渡す書き方。白背景（透過対策）は background で指定
+          await page.render({ canvas, viewport:vp, background:'#fff' }).promise;
           const jpg = await out.embedJpg(dataURLtoU8(canvas.toDataURL('image/jpeg', cfg.jpeg)));
           out.addPage([A4W, A4H]).drawImage(jpg, { x:0, y:0, width:A4W, height:A4H });
         }
@@ -1838,7 +1906,8 @@
   // 取り込み・登録まわりのお知らせは 1 の欄（status）、保存の結果は 4 の欄（saveStatus）に出す
   function setStatus(type,msg,id='status'){ const s=document.getElementById(id);
     s.className='status'+(type?' '+type:''); s.textContent=msg; }
-  function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  // 画面に出す名前の無害化。引用符も変換し、名前に " や ' が入っていても画面の部品の中に入り込めないようにする（2026-10-30）
+  function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
   initMonthSelect();  // 月のプルダウン（初期＝今月）
   renderAll();        // 起動時に登録一覧・画質ヒントなどを表示

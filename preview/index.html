@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="format-detection" content="telephone=no">
+<!-- 安全対策（2026-10-30）：このページが読み込める・通信できる先を、自分のサイトと会社のドライブの受け取り口（Apps Script）だけに絞る。
+     万一おかしなものが紛れ込んでも、よその場所から命令を読み込んだり、報告書や写真をよそへ送ったりできないようにするため。
+     受け取り口の返事は script.googleusercontent.com から届くので、そこも許可する。写真は端末の中で data: / blob: として扱う。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+<meta name="referrer" content="same-origin">
 <title>清掃報告書｜マスト管理 有限会社</title>
 <link rel="apple-touch-icon" href="../icon-180.png">
 <link rel="icon" type="image/svg+xml" href="../icon.svg">
@@ -1493,7 +1498,8 @@
   }
 
   function val(id){ const e=document.getElementById(id); return e?e.value:''; }
-  function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  // 画面に出す文字の無害化。引用符も変換し、文字が画面の部品の中に入り込めないようにする（2026-10-30）
+  function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
   /* ===== 清掃日は「日本時間の今日」を入れ直す =====
      これまでの不具合（2026-08-31 修正）：
