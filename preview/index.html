@@ -497,6 +497,7 @@
   const checkedWorks = ()=> works.filter(w=>w.checked).sort((a,b)=>a.ord-b.ord);   // 報告書に載る順
   let photos = [];        // 報告書に使う画像（長辺1100px）
   let photoThumbs = [];   // 入力画面のサムネ用（長辺320px）。展開後のメモリが約1/12になる
+  let photoMeta = [];     // 写真ごとの撮影時刻の記録用（photos と同じ並び）。{name, nameTime, exifTime}
 
   /* 作業内容（定番タップ） */
   const GRIP_SVG='<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 3.5h10M2 7h10M2 10.5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
@@ -644,7 +645,13 @@
       }
       // サムネは縮小済みの画像から作る。元の大きな写真をもう一度展開しないで済む
       if(d){ try{ t=await shrinkFromData(d, 320, 0.7); }catch(e){ t=null; } }
-      if(d){ photos.push(d); photoThumbs.push(t||d); }
+      // 撮影時刻の記録（業務管理）。縮小すると消えるので、元の写真から先に読む。記録が停止中(REC_ON=false)は読まない
+      let meta={ name:(take[i]&&take[i].name)||'', nameTime:null, exifTime:null };
+      if(REC_ON){
+        meta.nameTime = nameTime(meta.name);
+        try{ meta.exifTime = exifDateTime(await take[i].slice(0,131072).arrayBuffer()); }catch(e){}
+      }
+      if(d){ photos.push(d); photoThumbs.push(t||d); photoMeta.push(meta); }
       else { ng++; ngList.push(fileInfo(take[i])); }
       renderThumbs();
       await new Promise(r=>setTimeout(r,250));  // 1枚ごとに息継ぎ。ブラウザにメモリの後片付けをさせる
@@ -739,7 +746,7 @@
       }
     });
   }
-  function delPhoto(i){ photos.splice(i,1); photoThumbs.splice(i,1); renderThumbs(); render(); }
+  function delPhoto(i){ photos.splice(i,1); photoThumbs.splice(i,1); photoMeta.splice(i,1); renderThumbs(); render(); }
   function renderThumbs(){
     const n=photos.length;
     document.getElementById('photoNum').textContent=n;
@@ -1274,6 +1281,7 @@
       }
       showDone();      // 送信までいけたら完了パネルへ切り替える（キャンセル時はここに来ない）
       queueDrive(_pdfBlob, _pdfName, (val('f_date')||'').replace(/-/g,''));   // 同じPDFを会社のドライブへも
+      queueRecord();                                                          // 撮影時刻の記録を別アカウントへ（業務管理）
     }catch(e){ /* ユーザーが共有をキャンセルした場合などは何もしない */ }
   }
 
@@ -1354,6 +1362,107 @@
     _flushing=false;
   }
 
+  /* ===== 報告書の撮影時刻の記録（2026-10-31 追加・業務管理） =====
+     報告書を送れたら、その報告書に入れた写真の撮影時刻（ファイル名から／写真データのEXIFから）を記録先へ送る。
+     報告書のPDFには撮影時刻が残らないため、いつ作業したかの確認や、現場ごとの所要時間・移動時間の把握に使う。
+     送り先は、会社のドライブ（まとめツール）とは別のアカウント。REC_URL が空の間は何もしない（記録は動かない）。
+     電波が無い時は端末に預け、電波が戻った時・開いた時に送り直す（報告書そのものの送信とは別の預かり箱）。 */
+  const REC_URL = '';     // ★記録先（別アカウント）の受け取り口URL。ここを入れるまで記録は動かない
+  const REC_KEY = '';     // ★記録先と同じ合言葉
+  const REC_ON  = !!REC_URL;
+  const RECQ_DB = 'must-recq'+(DRIVE_TEST?'-pv':'');
+  function recTx(mode, fn){
+    return new Promise((res,rej)=>{
+      const rq=indexedDB.open(RECQ_DB,1);
+      rq.onupgradeneeded=()=>rq.result.createObjectStore('q',{keyPath:'id'});
+      rq.onerror=()=>rej(rq.error);
+      rq.onsuccess=()=>{ const tx=rq.result.transaction('q',mode); const r=fn(tx.objectStore('q'));
+        tx.oncomplete=()=>res(r && r.result); tx.onerror=()=>rej(tx.error); };
+    });
+  }
+  // ファイル名から日時を取る（OpenCamera等「IMG_20261030_153908」）。無ければnull
+  function nameTime(name){
+    const m=/(20\d{2})(\d{2})(\d{2})[ _-]?(\d{2})(\d{2})(\d{2})/.exec(String(name||''));
+    return m ? `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}` : null;
+  }
+  // 写真データ（JPEG）の中のEXIF撮影時刻（DateTimeOriginal）を読む。無ければnull
+  function exifDateTime(buf){
+    try{
+      const v=new DataView(buf);
+      if(v.getUint16(0)!==0xFFD8) return null;                  // JPEGの印
+      let off=2;
+      while(off+4 < v.byteLength){
+        const marker=v.getUint16(off), size=v.getUint16(off+2);
+        if((marker & 0xFF00)!==0xFF00 || marker===0xFFDA) break;   // 壊れ／画像本体に入ったら終わり
+        if(marker===0xFFE1 && v.getUint32(off+4)===0x45786966 && v.getUint16(off+8)===0x0000)   // APP1 "Exif\0\0"
+          return parseExif(buf, off+10, size-8);
+        off += 2 + size;
+      }
+    }catch(e){}
+    return null;
+  }
+  function parseExif(buf, base, len){
+    const v=new DataView(buf, base, Math.min(len, buf.byteLength-base));
+    const le=(v.getUint16(0)===0x4949);                         // II=リトル / MM=ビッグ
+    const u16=o=>v.getUint16(o,le), u32=o=>v.getUint32(o,le);
+    const ifd0=u32(4);
+    const exifPtr=tagVal(v,u16,u32,ifd0,0x8769);                // ExifIFDの場所
+    for(const start of [exifPtr, ifd0]){
+      if(!start) continue;
+      for(const tag of [0x9003, 0x0132]){                       // DateTimeOriginal→無ければDateTime
+        const s=tagAscii(v,u16,u32,start,tag);
+        if(s) return s.trim().replace(/^(\d{4}):(\d{2}):(\d{2})/, '$1-$2-$3');   // "YYYY:MM:DD hh:mm:ss"→"YYYY-MM-DD …"
+      }
+    }
+    return null;
+  }
+  function tagVal(v,u16,u32,ifd,tag){
+    if(!ifd || ifd+2>v.byteLength) return 0;
+    const n=u16(ifd);
+    for(let i=0;i<n;i++){ const e=ifd+2+i*12; if(e+12>v.byteLength) break; if(u16(e)===tag) return u32(e+8); }
+    return 0;
+  }
+  function tagAscii(v,u16,u32,ifd,tag){
+    if(!ifd || ifd+2>v.byteLength) return null;
+    const n=u16(ifd);
+    for(let i=0;i<n;i++){
+      const e=ifd+2+i*12; if(e+12>v.byteLength) break;
+      if(u16(e)===tag){ const cnt=u32(e+4), ptr=cnt>4?u32(e+8):e+8; let s='';
+        for(let k=0;k<cnt && ptr+k<v.byteLength;k++){ const c=v.getUint8(ptr+k); if(c===0) break; s+=String.fromCharCode(c); }
+        return s; }
+    }
+    return null;
+  }
+  async function queueRecord(){
+    if(!REC_ON) return;
+    const photosMeta = photoMeta.map(m=>({ name:m.name, nameTime:m.nameTime, exifTime:m.exifTime }));
+    let signage=null;   // 1枚目＝看板。書かれた時刻を目で読めるよう、小さくした画像だけ添える（位置情報は取らない）
+    try{ signage=((await shrinkFromData(photos[0]||'', 900, 0.55))||'').split(',')[1]||null; }catch(e){}
+    const rec={ id:[val('f_worker').trim(),(val('f_date')||'').replace(/-/g,''),val('f_place').trim()].join('|')+'|'+Date.now(),
+      worker:val('f_worker').trim(), date:(val('f_date')||'').replace(/-/g,''), site:val('f_place').trim(),
+      sentAt:new Date().toISOString(), photos:photosMeta, signage, test:DRIVE_TEST, t:Date.now() };
+    try{ await recTx('readwrite', st=>st.put(rec)); }catch(e){ await sendRecord(rec); return; }
+    flushRecord();
+  }
+  async function sendRecord(rec){
+    try{ const r=await fetch(REC_URL,{ method:'POST', body:JSON.stringify(Object.assign({k:REC_KEY}, rec)) });
+      const j=await r.json(); return !!(j && j.ok); }catch(e){ return false; }
+  }
+  let _recFlushing=false;
+  async function flushRecord(){
+    if(!REC_ON || _recFlushing) return; _recFlushing=true;
+    try{
+      for(let round=0; round<3; round++){
+        const keys=await recTx('readonly', st=>st.getAllKeys()); if(!keys.length) break;
+        let left=0;
+        for(const key of keys){ const rec=await recTx('readonly', st=>st.get(key)); if(!rec) continue;
+          if(await sendRecord(rec)){ await recTx('readwrite', st=>st.delete(key)); } else { left++; } }
+        if(left) break;
+      }
+    }catch(e){}
+    _recFlushing=false;
+  }
+
   /* ===== 送信のあとの画面 =====
      以前は緑の案内文が出たまま下に「次の報告書へ」が増えるだけで、送れたのか分かりにくかった。
      送信できたら用紙を隠して完了パネルに切り替え、画面の一番上へ戻す。
@@ -1405,7 +1514,7 @@
     document.getElementById('f_place').value='';
     _yomiBuf=''; closeAc();
     document.getElementById('f_notes').value='';
-    photos=[]; photoThumbs=[];
+    photos=[]; photoThumbs=[]; photoMeta=[];
     photoMsg('');
     clearDraft(true);            // 1件終わったので控えは破棄
     works.forEach(w=>{ w.checked=false; w.ord=0; });   // 作業内容は項目リスト（並びも）は残し、チェックと番号だけ外す
@@ -1558,8 +1667,8 @@
     el.classList.toggle('show', !navigator.onLine);
   }
   window.addEventListener('online', syncOnline);
-  window.addEventListener('online', ()=>flushDrive());
-  setTimeout(()=>flushDrive(), 1500);                 // 前回送れずに預かっている分があれば送る
+  window.addEventListener('online', ()=>{ flushDrive(); flushRecord(); });
+  setTimeout(()=>{ flushDrive(); flushRecord(); }, 1500);   // 前回送れずに預かっている分（報告書・記録とも）を送る
   window.addEventListener('offline', syncOnline);
   syncOnline();
 
@@ -1569,7 +1678,7 @@
   document.getElementById('inputView').addEventListener('input', saveDraftSoon);
   document.addEventListener('visibilitychange', ()=>{
     if(document.hidden){ saveDraft(); }              // 写真を選びに離れる直前に確実に控える
-    else { refreshDate(); render(); flushDrive(); }  // 戻ってきた時に清掃日を取り直す（日をまたいでも古い日付が残らない）・預かり分を送る
+    else { refreshDate(); render(); flushDrive(); flushRecord(); }  // 戻ってきた時に清掃日を取り直す（日をまたいでも古い日付が残らない）・預かり分を送る
   });
 </script>
 </body>
