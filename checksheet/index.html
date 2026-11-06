@@ -1,6 +1,6 @@
-<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>空室清掃チェック表</title><link rel="stylesheet" href="style.css?v=7"><main>
+<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>空室清掃チェック表</title><link rel="stylesheet" href="style.css?v=9"><main>
 <header><small>清掃業務 ／ 現場点検</small><h1>空室清掃チェック表</h1><p>全項目は○で始まります。不備がある項目だけ×をタップしてください。</p></header>
-<form id="form"><section><h2>物件情報</h2><label>物件名・号室<input id="property" required maxlength="60" placeholder="物件名と号室"></label><div class="pair"><label>点検日<input id="date" type="date" min="2019-05-01" max="2117-12-31" required></label><label>点検者<input id="person" required maxlength="30" aria-describedby="personHelp"><small id="personHelp" class="hint">このブラウザに名前を記憶します。別の方が使うときは書き換えてください。</small></label></div></section>
+<form id="form"><section><h2>物件情報</h2><label>物件名・号室<input id="property" required maxlength="60" placeholder="物件名と号室"></label><div class="pair"><label>点検日<input id="date" type="date" min="2019-05-01" max="2117-12-31" required aria-describedby="dateHelp"><small id="dateHelp" class="hint" role="status">日付を消した場合は、今日の日付に戻ります。</small></label><label>点検者<input id="person" required maxlength="30" aria-describedby="personHelp"><small id="personHelp" class="hint">このブラウザに名前を記憶します。別の方が使うときは書き換えてください。</small></label></div></section>
 <div class="heading"><h2>点検項目</h2><output id="count"></output></div><p class="legend">○ 良好・実施　 × 不備・要改善</p><div id="groups"></div>
 <section><label>特記事項<textarea id="notes" rows="3"></textarea></label></section>
 <details class="font"><summary>PDFの記入文字について</summary><p>元の用紙と印刷済みの文字はそのまま使用します。追加する文字には原本のメイリオ（Meiryo UI）を使います。原本に含まれない文字は、お手元のメイリオのフォントファイルを選ぶか、下の設定で端末の書体を許可してください。</p><label>メイリオのフォントファイル<input id="fontFile" type="file" accept=".ttc,.ttf,.otf"></label><label class="allow"><input type="checkbox" id="fallback">不足する記入文字だけ端末の書体を使う</label><output id="fontmsg"></output></details>
@@ -16,9 +16,9 @@
 <button id="download" type="button">PDFを保存</button>
 <div id="pdfPreview" hidden><p id="previewStatus" role="status"></p><canvas id="pdfCanvas" aria-label="記入済みPDF"></canvas></div>
 <details id="shareHelp"><summary>LINEが表示されない・送れないとき</summary>
-<p>iPhoneでは「PDFを開いて確認」からPDFを開き、共有ボタン → LINEを選びます。必要に応じて「その他」も確認してください。</p>
+<p>iPhoneでは「PDFを保存」で保存したPDFを「ファイル」アプリから開き、共有ボタン → LINEを選びます。</p>
 <p>Androidでは「PDFを保存」して、LINEのトークの「＋」→「ファイル」から保存したPDFを選びます。</p>
 <p>ChatGPTやLINE内のブラウザを使っている場合は、このアプリ内ブラウザがPDFの共有・保存を制限している可能性があります。</p>
 </details>
 <button id="edit" type="button">入力内容を修正</button>
-</section><button type="button" id="reset">次の物件を入力</button></main><script src="pdf-lib.min.js"></script><script src="items.js"></script><script src="glyphs.js"></script><script src="app.js?v=8"></script></html>
+</section><button type="button" id="reset">次の物件を入力</button></main><script src="pdf-lib.min.js"></script><script src="items.js"></script><script src="glyphs.js"></script><script src="app.js?v=9"></script></html>

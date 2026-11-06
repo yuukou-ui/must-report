@@ -5,14 +5,24 @@ const personKey='cleaning-inspection-person-v1';
 const fields=['property','date','person','notes'];
 let draft={};
 try{draft=JSON.parse(localStorage.getItem(key))||{}}catch{}
+if(!draft || typeof draft!=='object' || Array.isArray(draft))draft={};
+function todayValue(){const now=new Date();return new Date(now-now.getTimezoneOffset()*60000).toISOString().slice(0,10)}
 const today=new Date();
-for(const id of fields) $('#'+id).value=draft[id]??(id==='date'?new Date(today-today.getTimezoneOffset()*60000).toISOString().slice(0,10):'');
+for(const id of fields) $('#'+id).value=typeof draft[id]==='string'?draft[id]:(id==='date'?todayValue():'');
 let rememberedPerson='';
 try{rememberedPerson=localStorage.getItem(personKey)||''}catch{}
-$('#person').value=draft.person??rememberedPerson;
-const values=items.map((_,i)=>({mark:draft.rows?.[i]?.mark==='×'?'×':'○',note:draft.rows?.[i]?.note||''}));
+$('#person').value=typeof draft.person==='string'?draft.person:rememberedPerson;
+function normalizeDate(){
+ const input=$('#date');
+ if(!input.value){input.value=todayValue();$('#dateHelp').textContent='日付をリセットしたため、今日の日付に戻しました。'}
+ else if(!input.validity.valid){$('#dateHelp').textContent='2019年5月1日〜2117年12月31日の日付を選んでください。'}
+ else $('#dateHelp').textContent='日付を消した場合は、今日の日付に戻ります。';
+}
+normalizeDate();
+const values=items.map((_,i)=>({mark:draft.rows?.[i]?.mark==='×'?'×':'○',note:typeof draft.rows?.[i]?.note==='string'?draft.rows[i].note:''}));
 $('#fallback').checked=draft.fallback===true;
-let file,url,imported=false;
+let file,url,imported=false,building=false,renderTask=null,previewVersion=0;
+function cancelPreview(){previewVersion++;if(renderTask){renderTask.cancel();renderTask=null;}$('#pdfPreview').hidden=true;$('#preview').disabled=false;}
 const parts=[];
 function update(){
  let issues=0;
@@ -22,7 +32,7 @@ function update(){
   buttons.forEach(([i,button,mark])=>button.setAttribute('aria-pressed',String(values[i].mark===mark)));
  });
  $('#count').textContent='要改善 '+issues+'件';
- $('#result').hidden=true; file=null;
+ cancelPreview();$('#result').hidden=true; file=null;
  if(url){URL.revokeObjectURL(url);url=null}
  $('#message').textContent='';
  try{localStorage.setItem(personKey,$('#person').value);localStorage.setItem(key,JSON.stringify({...Object.fromEntries(fields.map(id=>[id,$('#'+id).value])),rows:values,fallback:$('#fallback').checked}));$('#saveState').textContent='入力内容はこのブラウザに自動保存されます。'}catch{$('#saveState').textContent='このブラウザでは下書きを保存できません。'}
@@ -48,13 +58,17 @@ for(const [name,size] of sections){
  }
  parts.push({start,end,badge,buttons});$('#groups').append(details);
 }
-for(const id of [...fields,'fallback'])$('#'+id).addEventListener('input',update);
+for(const id of [...fields,'fallback'])$('#'+id).addEventListener('input',()=>{if(id==='date')normalizeDate();$('#'+id).setCustomValidity('');update()});
+for(const event of ['change','blur'])$('#date').addEventListener(event,()=>{normalizeDate();update()});
 update();
 function nextProperty(){
+ if(building)return;
+ cancelPreview();
  $('#property').value='';
  $('#notes').value='';
  const now=new Date();
  $('#date').value=new Date(now-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
+ normalizeDate();
  values.forEach(row=>{row.mark='○';row.note=''});
  document.querySelectorAll('#groups input').forEach(input=>{input.value='';input.hidden=true});
  $('#pdfPreview').hidden=true;
@@ -95,6 +109,7 @@ async function fontStore(mode,work){
 async function useFont(buf){const face=new FontFace('InspectionMeiryo',buf);await face.load();document.fonts.add(face);imported=true}
 const restored=fontStore('readonly',s=>s.get('regular')).then(async buf=>{if(buf){await useFont(buf);$('#fontmsg').textContent='保存済みの Meiryo UI を使用します。'}}).catch(()=>{});
 $('#fontFile').onchange=async e=>{
+ if(!e.target.files?.length)return;
  await restored;update();
  try{const buf=meiryoFace(await e.target.files[0].arrayBuffer());await useFont(buf);
  try{await fontStore('readwrite',s=>s.put(buf,'regular'));$('#fontmsg').textContent='このブラウザに Meiryo UI を保存しました。'}catch{$('#fontmsg').textContent='今回の入力に Meiryo UI を使用します。'}
@@ -151,7 +166,10 @@ async function buildPdf(){
  return doc.save();
 }
 $('#form').onsubmit=async e=>{
- e.preventDefault();const btn=e.submitter;btn.disabled=true;$('#message').textContent='PDFを作成中…';
+ e.preventDefault();if(building)return;normalizeDate();
+ for(const id of ['property','person']){const input=$('#'+id);input.setCustomValidity(input.value.trim()?'':'空白だけでは入力できません。');}
+ if(!$('#form').reportValidity())return;
+ building=true;const controls=[...document.querySelectorAll('#form input,#form textarea,#form button,#reset')];const disabled=controls.map(c=>c.disabled);controls.forEach(c=>c.disabled=true);$('#form').setAttribute('aria-busy','true');$('#message').textContent='PDFを作成中…';
  try{
   const bytes=await buildPdf(),name='空室清掃_'+$('#property').value.trim().replace(/[\\/:*?"<>|]/g,'_')+'_'+$('#date').value+'.pdf';
   file=new File([bytes],name,{type:'application/pdf'});if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(file);
@@ -170,7 +188,7 @@ $('#form').onsubmit=async e=>{
   $('header').hidden=true;
   $('#result').hidden=false;
   window.scrollTo({top:0,behavior:'smooth'});
- }catch(err){$('#message').textContent=err.message}finally{btn.disabled=false}
+ }catch(err){$('#message').textContent=err.message}finally{building=false;controls.forEach((c,i)=>c.disabled=disabled[i]);$('#form').removeAttribute('aria-busy')}
 };
 $('#edit').onclick=()=>{
  $('#form').hidden=false;
@@ -180,7 +198,7 @@ $('#edit').onclick=()=>{
 };
 $('#share').onclick=async()=>{
  if(!file)return;
- const button=$('#share');
+ const button=$('#share'),sharedFile=file;
  $('#shareMessage').textContent='';
  if(typeof navigator.share!=='function' || (typeof navigator.canShare==='function' && !navigator.canShare({files:[file]}))){
   $('#shareHelp').open=true;
@@ -190,9 +208,11 @@ $('#share').onclick=async()=>{
  }
  button.disabled=true;
  try{
-  await navigator.share({files:[file],title:file.name});
+  await navigator.share({files:[sharedFile],title:sharedFile.name});
+  if(file!==sharedFile)return;
   $('#shareMessage').textContent='共有画面を閉じました。この画面ではLINEへの送信完了を確認できません。';
  }catch(error){
+  if(file!==sharedFile)return;
   if(error.name==='AbortError'){
    $('#shareMessage').textContent='共有をキャンセルしました。もう一度送るボタンを押せます。';
   }else{
@@ -207,7 +227,7 @@ $('#preview').onclick=async()=>{
  if(!file)return;
  const button=$('#preview');
  button.disabled=true;
- const selectedFile=file;
+ const selectedFile=file,version=++previewVersion;
  $('#pdfPreview').hidden=false;
  $('#previewStatus').textContent='PDFを表示しています…';
  try{
@@ -215,18 +235,22 @@ $('#preview').onclick=async()=>{
   pdfRenderer.GlobalWorkerOptions.workerSrc='./pdfjs/pdf.worker.mjs';
   const pdf=await pdfRenderer.getDocument({data:new Uint8Array(await selectedFile.arrayBuffer()),isEvalSupported:false}).promise;
   try {
-   if(file!==selectedFile)return;
+   if(file!==selectedFile || version!==previewVersion)return;
    const page=await pdf.getPage(1);
+   if(file!==selectedFile || version!==previewVersion)return;
    const viewport=page.getViewport({scale:2});
    const canvas=$('#pdfCanvas');
    canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
-   await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+   renderTask=page.render({canvasContext:canvas.getContext('2d'),viewport});await renderTask.promise;
+   if(file!==selectedFile || version!==previewVersion)return;
+   renderTask=null;
    $('#previewStatus').textContent='';
    $('#pdfPreview').scrollIntoView({block:'start',behavior:'smooth'});
   }finally{await pdf.destroy()}
  }catch(error){
+  if(version!==previewVersion || error.name==='RenderingCancelledException')return;
   $('#previewStatus').textContent='PDFの表示に失敗しました。もう一度「PDFを開いて確認」を押してください。';
- }finally{button.disabled=false}
+ }finally{if(version===previewVersion){button.disabled=false;renderTask=null}}
 };
 $('#download').onclick=()=>{
  if(!file)return;
