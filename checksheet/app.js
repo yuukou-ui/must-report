@@ -1,11 +1,13 @@
 const $=s=>document.querySelector(s);
-const sections=[['共用部',9],['玄関',4],['キッチン',6],['U.B（浴室）',4],['トイレ',4],['洗面所',4],['洋間',5],['ベランダ',4]];
+const sections=[['玄関',4],['キッチン',6],['U.B（浴室）',4],['トイレ',4],['洗面所',4],['洋間',5],['ベランダ',4]];
 const key='cleaning-inspection-v1';
 const personKey='cleaning-inspection-person-v1';
 const fields=['property','date','person','notes'];
 let draft={};
 try{draft=JSON.parse(localStorage.getItem(key))||{}}catch{}
 if(!draft || typeof draft!=='object' || Array.isArray(draft))draft={};
+// Preserve room checks from the previous 40-row draft without shifting their positions.
+if(Array.isArray(draft.rows) && draft.rows.length===40)draft.rows=draft.rows.slice(9);
 function todayValue(){const now=new Date();return new Date(now-now.getTimezoneOffset()*60000).toISOString().slice(0,10)}
 const today=new Date();
 for(const id of fields) $('#'+id).value=typeof draft[id]==='string'?draft[id]:(id==='date'?todayValue():'');
@@ -261,3 +263,4 @@ $('#download').onclick=()=>{
  link.click();link.remove();
  $('#shareMessage').textContent='PDFの保存を要求しました。この画面では端末への保存完了を確認できません。';
 };
+
