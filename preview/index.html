@@ -337,7 +337,7 @@
 
   <div class="draft-note" id="draftNote">
     <span id="draftNoteText"></span>
-    <button type="button" onclick="clearDraft(true)">消す</button>
+    <button type="button" onclick="discardDraft()">消す</button>
   </div>
 
 
@@ -1267,6 +1267,7 @@
     const file=new File([_pdfBlob], _pdfName, {type:'application/pdf'});
     try{
       _shareMode='share';
+      _sending=true; saveDraft();   // LINEへ移っている間にアプリが落ちても「送る途中だった」と分かるよう控えに印を付ける
       if(navigator.canShare && navigator.canShare({files:[file]})){
         // title は一旦戻した（2026-08-15）。titleを外したところ、iPhoneの共有シートから
         // LINEのアイコン自体が消えて送信できなくなったため。titleがあるとiOSでは
@@ -1279,10 +1280,14 @@
         const a=document.createElement('a'); a.href=url; a.download=_pdfName; a.click();
         setTimeout(()=>URL.revokeObjectURL(url),10000);
       }
+      _sending=false;
       showDone();      // 送信までいけたら完了パネルへ切り替える（キャンセル時はここに来ない）
       queueDrive(_pdfBlob, _pdfName, (val('f_date')||'').replace(/-/g,''));   // 同じPDFを会社のドライブへも
       queueRecord();                                                          // 撮影時刻の記録を別アカウントへ（業務管理）
-    }catch(e){ /* ユーザーが共有をキャンセルした場合などは何もしない */ }
+    }catch(e){
+      /* ユーザーが共有をキャンセルした場合など。入力は残すので、「送る途中」の印だけ外して控え直す */
+      _sending=false; saveDraft();
+    }
   }
 
   /* ===== 会社のGoogleドライブへの控え（2026-10 追加） =====
@@ -1484,6 +1489,8 @@
   function showDone(){
     const place=val('f_place').trim();
     const list=addSent(place);
+    _sentSig=draftSig(draftData());    // 送った内容を覚え、このままの間は控えを作らない（入力の自動保存を参照）
+    clearDraft(true);                  // 送れたので控えは捨てる（裏で落とされて開き直しても前の入力は戻らない）
     const sent=(_shareMode!=='download');
     document.getElementById('doneMark').textContent  = sent?'✅':'📥';
     document.getElementById('doneTitle').textContent = sent?'送信しました':'端末に保存しました';
@@ -1517,6 +1524,7 @@
     photos=[]; photoThumbs=[]; photoMeta=[];
     photoMsg('');
     clearDraft(true);            // 1件終わったので控えは破棄
+    _sentSig='';                 // 次の報告書は新しい内容なので、送るまでは普段どおり控える
     works.forEach(w=>{ w.checked=false; w.ord=0; });   // 作業内容は項目リスト（並びも）は残し、チェックと番号だけ外す
     renderChecks();
     renderThumbs();
@@ -1571,16 +1579,29 @@
   /* ===== 入力の自動保存 =====
      写真の選択中にブラウザがメモリ不足でタブを落とすと、戻ってきた時に画面が初期化される。
      打ち込んだ内容が消えないよう、文字の入力は常に端末に控えておき、復元したら帯で知らせる。
-     （写真は容量が大きく保存できないため、復元の対象外） */
+     （写真は容量が大きく保存できないため、復元の対象外）
+
+     2026-11-17 修正：「LINEで送った後に開き直すと、前回の入力が残っていることがある」
+       原因：送信後も入力欄には送った内容が入ったままなので、アプリを裏に回すたび（LINEへ移る・ホームに戻る）
+       その内容を控えに保存し直していた。スマホが裏のアプリを落とすと、次に開いた時に
+       送信済みの報告書が「前回の入力を復元しました」として戻ってきていた（落とされた時だけ起きるので「たまに」）。
+       対策：送れた時点で控えを捨て、送った内容（清掃場所・特記事項・作業内容のチェック）を覚えておく。
+       欄の中身が送った内容のままなら控えを作らない。送信後に書き直した時だけ、また控える（送り直しの途中で落ちても困らない）。
+       LINEへ移ったまま落ちて送れたか分からない時は、消さずに残して「送る途中だった」と帯で知らせる。 */
   const LS_DRAFT='must_draft';
   let _draftTimer=null;
+  let _sentSig='';                 // 送信済みの内容の目印（この内容のままなら控えは要らない）
+  let _sending=false;              // 共有シート〜LINEへ移っている最中か
   function draftData(){
-    return { place:val('f_place'), date:val('f_date'), worker:val('f_worker'), notes:val('f_notes'),
-             checked:checkedWorks().map(w=>w.name), dateTouched:_dateTouched, t:Date.now() };   // 押した順のまま控える
+    return { v:2, place:val('f_place'), date:val('f_date'), worker:val('f_worker'), notes:val('f_notes'),
+             checked:checkedWorks().map(w=>w.name), dateTouched:_dateTouched, sending:_sending, t:Date.now() };   // 押した順のまま控える
   }
+  // 清掃日は含めない：送信後に日をまたぐと清掃日が自動で今日に入れ替わり、別の内容と見なされて控えに戻ってしまうため
+  function draftSig(d){ return JSON.stringify([ (d.place||'').trim(), (d.notes||'').trim(), d.checked||[] ]); }
   function saveDraft(){
     const d=draftData();
     if(!d.place && !d.notes && !d.checked.length){ try{ localStorage.removeItem(LS_DRAFT); }catch(e){} return; }
+    if(_sentSig && draftSig(d)===_sentSig){ try{ localStorage.removeItem(LS_DRAFT); }catch(e){} return; }   // 送信済みのまま＝控えない
     try{ localStorage.setItem(LS_DRAFT, JSON.stringify(d)); }catch(e){}
   }
   function saveDraftSoon(){ clearTimeout(_draftTimer); _draftTimer=setTimeout(saveDraft,400); }
@@ -1594,6 +1615,8 @@
     try{ d=JSON.parse(localStorage.getItem(LS_DRAFT)||'null'); }catch(e){ d=null; }
     if(!d) return;
     if(Date.now()-(d.t||0) > 12*60*60*1000){ clearDraft(); return; }   // 半日以上前の控えは使わない
+    // 修正前の版が残した控え（v なし）で、今日すでに送った物件のもの＝送信済みの報告書が残っていたもの。戻さずに捨てる
+    if(!d.v && d.place && loadSent().includes(d.place.trim())){ clearDraft(); return; }
     if(d.place) document.getElementById('f_place').value=d.place;
     // 日付は「手で直した」控えだけ戻す。自動で入っていた日付は戻さず、あとで今日の日付に入れ直す
     if(d.date && d.dateTouched){ document.getElementById('f_date').value=d.date; _dateTouched=true; }
@@ -1601,9 +1624,25 @@
     if(d.notes) document.getElementById('f_notes').value=d.notes;
     if(d.checked&&d.checked.length) d.checked.forEach(n=>{ const w=works.find(w=>w.name===n&&!w.checked); if(w){ w.checked=true; w.ord=++workSeq; } });
     const mm=Math.round((Date.now()-(d.t||Date.now()))/60000);
-    document.getElementById('draftNoteText').textContent =
-      '前回の入力を復元しました（'+(mm<1?'たった今':mm+'分前')+'の内容）。写真は復元できないので選び直してください。';
+    const when=(mm<1?'たった今':mm+'分前');
+    document.getElementById('draftNoteText').textContent = d.sending
+      ? 'LINEへ送る途中でアプリが閉じたため、入力を残しています（'+when+'）。LINEに届いていれば「消す」を押してください。届いていなければ写真を選び直して送り直してください。'
+      : '前回の入力を復元しました（'+when+'の内容）。写真は復元できないので選び直してください。';
     document.getElementById('draftNote').classList.add('show');
+  }
+  /* 帯の「消す」：以前は帯を閉じるだけで、戻した入力は欄に残ったままだった
+     （次に裏へ回すとまた控えに入り、「消したのに前の入力が出てくる」原因になっていた）。
+     戻した入力そのものを消す。清掃者・写真はそのまま。間違えて押しても大丈夫なよう確認を出す。 */
+  function discardDraft(){
+    if(!confirm('復元した入力（清掃場所・特記事項・作業内容のチェック）を消しますか？')) return;
+    document.getElementById('f_place').value='';
+    _yomiBuf=''; closeAc();
+    document.getElementById('f_notes').value='';
+    works.forEach(w=>{ w.checked=false; w.ord=0; });
+    clearDraft(true);
+    renderChecks();
+    refreshDate();
+    render();
   }
 
   function val(id){ const e=document.getElementById(id); return e?e.value:''; }
