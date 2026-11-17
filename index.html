@@ -1084,6 +1084,17 @@
     let a=loadNames(); if(!a.includes(v)){ a.unshift(v); a=a.slice(0,8); storeNames(a); } renderNameChips(); }
   function delName(i){ let a=loadNames(); a.splice(i,1); storeNames(a); renderNameChips(); }
   function syncNameChips(){ renderNameChips(); }
+  /* 清掃者の名前は開き直しても残す（2026-11-17）
+     スマホは1人1台なので、最後に送った報告書の清掃者名を覚えておき、開いた時に欄が空なら入れる。
+     送った時だけ覚えるので、打ちかけの名前や他の人が一時的に入れた名前は残らない。
+     清掃場所・特記事項などは送信後に残さない（入力の自動保存を参照）。 */
+  const LS_LAST_WORKER='must_last_worker';
+  function storeLastWorker(n){ n=(n||'').trim(); if(!n) return; try{ localStorage.setItem(LS_LAST_WORKER, n); }catch(e){} }
+  function fillLastWorker(){
+    const e=document.getElementById('f_worker'); if(!e || e.value.trim()) return;
+    let n=''; try{ n=localStorage.getItem(LS_LAST_WORKER)||''; }catch(err){}
+    if(n){ e.value=n; renderNameChips(); }
+  }
 
   /* ===== プレビューへ進む前の未入力チェック =====
      物件名・清掃日・清掃者が空のままではプレビューに進めない（2026-09-18 決定）。
@@ -1481,6 +1492,7 @@
     const place=val('f_place').trim();
     const list=addSent(place);
     _sentSig=draftSig(draftData());    // 送った内容を覚え、このままの間は控えを作らない（入力の自動保存を参照）
+    storeLastWorker(val('f_worker'));  // 清掃者の名前だけは次に開いた時も入れておく
     clearDraft(true);                  // 送れたので控えは捨てる（裏で落とされて開き直しても前の入力は戻らない）
     const sent=(_shareMode!=='download');
     document.getElementById('doneMark').textContent  = sent?'✅':'📥';
@@ -1703,6 +1715,7 @@
   syncOnline();
 
   restoreDraft();                       // 落ちて戻された時のために、まず控えを戻す
+  fillLastWorker();                     // 清掃者が空なら、最後に送った時の名前を入れる（控えを戻したあとに実行）
   refreshDate();                        // 清掃日は日本時間の今日を入れる（控えを戻したあとに実行）
   renderChecks(); renderThumbs(); render();
   document.getElementById('inputView').addEventListener('input', saveDraftSoon);
